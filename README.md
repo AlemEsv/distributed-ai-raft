@@ -1,7 +1,7 @@
 # distributed-ai-raft
 
 ```txt
-nombre-repositorio/
+distributed-ia-raft/
 │
 ├── README.md                 # Instrucciones generales de cómo correr todo el sistema
 ├── .gitignore                # CRÍTICO: Para no subir basura (ver abajo)
