@@ -1,0 +1,33 @@
+# --- General ---
+.DS_Store
+*.log
+
+# --- Python ---
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.env
+
+# --- Node.js ---
+node_modules/
+npm-debug.log
+package-lock.json # Opcional: a veces se versiona, pero en exámenes a veces molesta
+
+# --- Java ---
+*.class
+*.jar
+*.war
+bin/
+build/
+target/
+.gradle/
+.idea/
+*.iml
+.vscode/
+
+# --- Simulación de Discos ---
+# Ignorar las carpetas donde los workers guardan los datos replicados
+server-node/disk/
+server-node/logs/
+server-node/models/
