@@ -26,8 +26,8 @@ target/
 *.iml
 .vscode/
 
-# --- Simulación de Discos ---
-# Ignorar las carpetas donde los workers guardan los datos replicados
-server-node/disk/
-server-node/logs/
-server-node/models/
+# Simulación de Discos
+src/server/node_worker/disk/
+
+# --- Cliente ---
+src/client/stress_test_data.csv

@@ -41,36 +41,10 @@ function appendToLog(entry) {
 }
 
 // Líder: replicar a followers
-function replicateEntry(entry, fileContent) {
-    // Guardar localmente primero
-    storeFile(entry.filename, fileContent);
-    appendToLog(entry);
-    
-    // Enviar a todos los peers
-    broadcastToPeers({
-        type: 'APPEND_ENTRIES',
-        term: entry.term || 1,
-        leaderId: require('../config').nodeId,
-        entries: [entry],
-        fileContent: fileContent.toString('base64')
-    });
-}
+// (Movido a RaftNode.js)
 
 // Follower: manejar AppendEntries del líder
-function handleAppendEntries(message) {
-    const { entries, fileContent, term, leaderId } = message;
-    
-    entries.forEach(entry => {
-        // Decodificar y guardar archivo
-        const content = Buffer.from(fileContent, 'base64');
-        storeFile(entry.filename, content);
-        appendToLog(entry);
-    });
-    
-    console.log(`[RAFT] Replicado desde ${leaderId}, term ${term}`);
-    
-    return { success: true, term };
-}
+// (Movido a RaftNode.js)
 
 // Obtener estado actual para monitor
 function getReplicationState() {
@@ -84,7 +58,5 @@ function getReplicationState() {
 module.exports = {
     storeFile,
     appendToLog,
-    replicateEntry,
-    handleAppendEntries,
     getReplicationState
 };

@@ -2,15 +2,12 @@
 const config = require('./config');
 const { createClientServer, sendResponse } = require('./tcp/tcpServer');
 const { createPeerServer, connectToAllPeers, sendToPeer } = require('./tcp/peerSocket');
-const { replicateEntry, handleAppendEntries, getReplicationState } = require('./raft/replication');
-const { createMonitorServer, updateRaftState } = require('./http/monitor');
+const RaftNode = require('./raft/RaftNode');
+const { createMonitorServer } = require('./http/monitor');
 const { trainModel, predict } = require('./java/executor');
 const path = require('path');
 
-console.log(`\n========== NODO ${config.nodeId} ==========\n`);
-
-// Variable compartida para rol actual (P1 la actualizará)
-let isLeader = false;
+console.log(`\nNODO ${config.nodeId}\n`);
 
 // Manejar mensajes de clientes
 function handleClientMessage(socket, message) {
@@ -18,11 +15,11 @@ function handleClientMessage(socket, message) {
     
     switch (message.type) {
         case 'TRAIN_REQUEST':
-            if (!isLeader) {
+            if (RaftNode.state !== 'LEADER') {
                 sendResponse(socket, { 
                     success: false, 
                     error: 'No soy el líder',
-                    leader: null // P1 debe proveer esto
+                    leader: RaftNode.leaderId
                 });
                 return;
             }
@@ -46,16 +43,10 @@ async function handleTrainRequest(socket, payload) {
     const inputPath = path.join(__dirname, 'disk/datasets', filename);
     
     try {
-        // 1. Replicar datos a todos los nodos
-        replicateEntry(
-            { command: 'STORE_FILE', filename },
-            Buffer.from(data_content, 'base64')
-        );
+        // 1. Replicar datos a todos los nodos (Consenso Raft)
+        RaftNode.replicateData(filename, Buffer.from(data_content, 'base64'));
         
-        // 2. Esperar confirmación de mayoría (simplificado)
-        // En producción, P1 maneja el quorum
-        
-        // 3. Ejecutar entrenamiento en Java
+        // 2. Ejecutar entrenamiento en Java
         const result = await trainModel(inputPath, model_name);
         
         sendResponse(socket, {
@@ -89,30 +80,38 @@ async function handlePredictRequest(socket, payload) {
 
 // Manejar mensajes de otros nodos
 function handlePeerMessage(socket, message) {
-    console.log(`[PEER] Recibido: ${message.type}`);
+    // Filtrar heartbeats para no saturar consola
+    if (message.type !== 'APPEND_ENTRIES' || message.entries?.length > 0) {
+        // console.log(`[PEER] Recibido: ${message.type}`);
+    }
     
     switch (message.type) {
         case 'IDENTIFY':
             console.log(`[PEER] Nodo identificado: ${message.nodeId}`);
             break;
             
-        case 'APPEND_ENTRIES':
-            const result = handleAppendEntries(message);
-            socket.write(JSON.stringify({
-                type: 'APPEND_ENTRIES_RESPONSE',
-                ...result,
-                nodeId: config.nodeId
-            }) + '\n');
+        case 'REQUEST_VOTE':
+            RaftNode.handleRequestVote(message);
             break;
             
-        // P1 agregará más tipos: REQUEST_VOTE, HEARTBEAT, etc.
+        case 'REQUEST_VOTE_RESPONSE':
+            RaftNode.handleRequestVoteResponse(message);
+            break;
+            
+        case 'APPEND_ENTRIES':
+            const result = RaftNode.handleAppendEntries(message);
+            sendToPeer(message.leaderId, {
+                type: 'APPEND_ENTRIES_RESPONSE',
+                term: RaftNode.currentTerm,
+                success: result.success,
+                nodeId: config.nodeId
+            });
+            break;
+            
+        case 'APPEND_ENTRIES_RESPONSE':
+            RaftNode.handleAppendEntriesResponse(message);
+            break;
     }
-}
-
-// Función para que P1 actualice el estado
-function setLeaderStatus(status, raftInfo) {
-    isLeader = status;
-    updateRaftState(raftInfo);
 }
 
 // Iniciar todo
@@ -122,6 +121,3 @@ createMonitorServer();
 
 // Conectar a peers después de un delay
 setTimeout(connectToAllPeers, 2000);
-
-// Exportar para que P1 pueda integrarse
-module.exports = { setLeaderStatus };
