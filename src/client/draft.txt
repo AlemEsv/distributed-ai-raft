@@ -1,3 +1,0 @@
-Cliente hecho en python
-
-- Cinver
