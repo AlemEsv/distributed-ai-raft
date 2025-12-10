@@ -1,0 +1,45 @@
+P4 - INGENIERO DE DATOS Y CONCURRENCIA
+========================================
+
+ARCHIVOS INCLUIDOS:
+- src/Main.java                    (Tarea 4.3: CLI Wrapper)
+- src/MultiThreadTrainer.java      (Tarea 4.1: Multi-threading)
+- src/DataLoader.java              (Tarea 4.2: Gestión I/O)
+- src/TrainingData.java            (Estructura de datos)
+- src/NeuralNetwork.java           (Red neuronal - colaboración con P3)
+- src/Matrix.java                  (Operaciones matriciales - colaboración con P3)
+- src/ActivationFunction.java      (Funciones de activación - P3)
+- src/DataGenerator.java           (Generador de datos de prueba)
+
+COMPILACIÓN:
+  chmod +x build.sh
+  ./build.sh
+
+USO DEL JAR:
+  java -jar core.jar train <input_path> <model_id>
+  java -jar core.jar predict <model_id> <input_data>
+  java -jar core.jar info
+
+EJEMPLOS:
+  # Generar datos
+  javac -d bin src/DataGenerator.java
+  java -cp bin DataGenerator xor
+  
+  # Entrenar
+  java -jar core.jar train datasets/xor.csv mi_modelo
+  
+  # Predecir
+  java -jar core.jar predict mi_modelo "0,1"
+
+PRUEBAS:
+  chmod +x test.sh
+  ./test.sh
+
+INTEGRACIÓN NODE.JS (P2):
+  const { spawn } = require('child_process');
+  const java = spawn('java', ['-jar', 'core.jar', 'train', 'data.csv', 'modelo']);
+  java.stdout.on('data', (data) => console.log(data.toString()));
+
+REQUISITOS:
+  - Java 8 o superior
+  - Sistema Unix/Linux (o Windows con Git Bash)
