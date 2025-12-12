@@ -1,42 +1,42 @@
-# distributed-ai-raft
+# Sistema Distribuido de Entrenamiento IA
 
-```txt
-distributed-ia-raft/
-│
-├── README.md                 # Instrucciones generales de cómo correr todo el sistema
-├── .gitignore                # CRÍTICO: Para no subir basura (ver abajo)
-├── docs/                     # Documentación (PDFs del examen)
-│   ├── informe_final.pdf
-│   ├── presentacion.pdf
-│   └── diagramas/            # Imágenes de arquitectura y flujo
-│
-├── src/                      # Código Fuente
-│   │
-│   ├── client-python/        # (Equipo P5)
-│   │   ├── main.py           # Punto de entrada de la GUI
-│   │   ├── stress_test.py    # Script de los 1000 archivos
-│   │   ├── requirements.txt  # Dependencias (si usan algo externo, aunque sea nativo)
-│   │   └── modules/
-│   │       ├── gui.py        # Lógica de Tkinter/PyQt
-│   │       └── network.py    # Cliente TCP Socket
-│   │
-│   ├── server-node/          # (Equipo P1 y P2)
-│   │   ├── index.js          # Punto de entrada del Worker
-│   │   ├── package.json      # Definición del proyecto Node
-│   │   ├── public/           # Archivos para el Monitor Web
-│   │   │   └── monitor.html
-│   │   └── modules/
-│   │       ├── raft.js       # Lógica del Consenso (States, Voting)
-│   │       ├── tcp_server.js # Manejo de Sockets TCP
-│   │       ├── http_server.js# Manejo del Monitor Web
-│   │       └── storage.js    # Escritura en disco
-│   │
-│   └── core-java/            # (Equipo P3 y P4)
-│       ├── build.sh          # Script opcional para compilar rápido
-│       ├── manifest.txt      # Para generar el JAR correctamente
-│       └── src/
-│           ├── Main.java     # Entry point (CLI Wrapper)
-│           ├── math/         # Matrix.java, Vector.java
-│           ├── nn/           # NeuralNetwork.java, Layer.java
-│           └── util/         # Serializer.java, DataLoader.java
-```
+Sistema híbrido (Python, Node.js, Java) para el entrenamiento distribuido de redes neuronales utilizando el algoritmo de consenso Raft.
+
+## Arquitectura
+
+* **Cliente (Python):** Interfaz gráfica (Tkinter) para usuarios y scripts de pruebas de estrés. Comunicación robusta vía TCP.
+* **Servidor (Node.js):** Implementación del algoritmo **Raft** para elección de líder y replicación de logs. Actúa como orquestador y servidor de monitoreo HTTP.
+* **Core (Java):** Motor de IA implementado desde cero (sin frameworks). Utiliza **multi-threading** para operaciones matriciales intensivas.
+
+## Estructura del Proyecto
+
+* `client`: GUI, cliente TCP y scripts de estrés.
+* `server`: Lógica de Raft, servidores TCP/HTTP y gestión de subprocesos.
+* `score`: Código fuente Java de la Red Neuronal, scripts de compilación (`build.sh`).
+
+## Requisitos
+
+* Python 3.x
+* Node.js (v14+)
+* Java JDK 8+
+
+## Ejecución Básica
+
+1. **Compilar Core Java:**
+
+    ```bash
+    cd src/core
+    ./build.sh
+    ```
+
+2. **Iniciar Nodos (Ejemplo):**
+
+    ```bash
+    node src/server/node_worker/server.js
+    ```
+
+3. **Iniciar Cliente:**
+
+    ```bash
+    python src/client/gui_app.py
+    ```
