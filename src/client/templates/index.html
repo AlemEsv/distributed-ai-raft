@@ -15,7 +15,7 @@
 <body>
     <div class="header text-center">
         <h1>Sistema Distribuido de Entrenamiento IA</h1>
-        <p>Cliente Web (Flask + Raft Cluster)</p>
+        <p>Cliente Web</p>
     </div>
 
     <div class="container">
@@ -148,7 +148,7 @@
                 
                 if (data.success) {
                     document.getElementById('predictionResult').textContent = data.prediction;
-                    log(`Predicción recibida: ${data.prediction}`, 'success');
+                    log(`Modelo: ${modelId} Predicción: ${data.prediction}`, 'success');
                 } else {
                     document.getElementById('predictionResult').textContent = "Error";
                     log(`Error: ${data.error}`, 'error');

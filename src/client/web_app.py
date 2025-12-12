@@ -51,5 +51,5 @@ def predict():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 if __name__ == '__main__':
-    print("Iniciando Cliente Web en http://localhost:5000")
-    app.run(debug=True, port=5000)
+    print("Iniciando Cliente Web en http://localhost:5005")
+    app.run(debug=True, port=5005)
