@@ -1,3 +1,5 @@
+package data;
+
 /**
  * Estructura de datos para almacenar ejemplos de entrenamiento
  */

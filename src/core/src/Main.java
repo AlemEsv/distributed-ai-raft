@@ -1,5 +1,7 @@
-import java.io.*;
-import java.util.*;
+import nn.NeuralNetwork;
+import data.DataLoader;
+import data.TrainingData;
+import concurrent.MultiThreadTrainer;
 
 /**
  * P4 - Ingeniero de Datos y Concurrencia
@@ -108,8 +110,7 @@ public class Main {
         String modelId = args[1];
         String inputData = args[2];
         
-        System.out.println("=== INICIANDO PREDICCIÓN ===");
-        System.out.println("Model ID: " + modelId);
+        System.err.println("Model ID: " + modelId);
         
         // Cargar modelo
         String modelPath = "models/" + modelId + ".bin";
@@ -123,21 +124,19 @@ public class Main {
         double[] output = nn.predict(input);
         
         // Formatear salida para Node.js
-        System.out.println("=== PREDICCIÓN COMPLETADA ===");
-        System.out.print("OUTPUT: [");
+        System.out.print("[");
         for (int i = 0; i < output.length; i++) {
             System.out.print(output[i]);
             if (i < output.length - 1) System.out.print(", ");
         }
         System.out.println("]");
-        System.out.println("Status: SUCCESS");
+        System.err.println("Status: SUCCESS");
     }
     
     /**
      * Muestra información del sistema
      */
     private static void printSystemInfo() {
-        System.out.println("=== INFORMACIÓN DEL SISTEMA ===");
         System.out.println("Java Version: " + System.getProperty("java.version"));
         System.out.println("Núcleos disponibles: " + Runtime.getRuntime().availableProcessors());
         System.out.println("Memoria máxima: " + (Runtime.getRuntime().maxMemory() / 1024 / 1024) + " MB");

@@ -1,3 +1,5 @@
+package math;
+
 /**
  * Funciones de activación para redes neuronales
  * P3 (Matemático Computacional) define estas funciones

@@ -1,5 +1,8 @@
+package concurrent;
+
+import nn.NeuralNetwork;
+import data.TrainingData;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * P4 - Tarea 4.1: Multi-threading

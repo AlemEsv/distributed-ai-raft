@@ -19,7 +19,7 @@ rm -f core.jar
 echo "Compilando archivos Java..."
 
 # Compilar todos los archivos .java
-javac -d bin src/*.java
+javac -d bin src/Main.java src/math/*.java src/nn/*.java src/data/*.java src/concurrent/*.java
 
 if [ $? -eq 0 ]; then
     echo "✓ Compilación exitosa"
@@ -29,7 +29,7 @@ if [ $? -eq 0 ]; then
     # Crear el JAR con manifest
     cd bin
     echo "Main-Class: Main" > manifest.txt
-    jar cvfm ../core.jar manifest.txt *.class
+    jar cvfm ../core.jar manifest.txt .
     cd ..
     
     if [ $? -eq 0 ]; then

@@ -1,234 +1,258 @@
-package core.src.math;
+package math;
 
-import java.io.Serializable;
 import java.util.Random;
+import java.io.Serializable;
 
+/**
+ * Clase Matrix para operaciones matriciales
+ * Colaboración P3-P4: P3 define la lógica matemática, 
+ * P4 optimiza con multi-threading cuando sea necesario
+ */
 public class Matrix implements Serializable {
-    public double[][] data;
-    public int rows, cols;
-
+    
+    private static final long serialVersionUID = 1L;
+    
+    private final double[][] data;
+    private final int rows;
+    private final int cols;
+    
+    /**
+     * Constructor con dimensiones
+     */
     public Matrix(int rows, int cols) {
-        this.cols = cols;
         this.rows = rows;
+        this.cols = cols;
         this.data = new double[rows][cols];
     }
-
-    public void randomize(){
-        Random ran = new Random();
-        for(int i = 0; i < rows; i++){
-            for(int j = 0; j < cols; j++){
-                data[i][j] = ran.nextGaussian() * 0.1;
+    
+    /**
+     * Constructor con datos
+     */
+    public Matrix(double[][] data) {
+        this.rows = data.length;
+        this.cols = data[0].length;
+        this.data = new double[rows][cols];
+        for (int i = 0; i < rows; i++) {
+            System.arraycopy(data[i], 0, this.data[i], 0, cols);
+        }
+    }
+    
+    /**
+     * Constructor desde vector columna
+     */
+    public Matrix(double[] vector) {
+        this.rows = vector.length;
+        this.cols = 1;
+        this.data = new double[rows][1];
+        for (int i = 0; i < rows; i++) {
+            this.data[i][0] = vector[i];
+        }
+    }
+    
+    /**
+     * Inicializa la matriz con valores aleatorios (Xavier initialization)
+     */
+    public void randomize(int inputSize) {
+        Random rand = new Random();
+        double scale = Math.sqrt(2.0 / inputSize);
+        
+        for (int i = 0; i < rows; i++) {
+            for (int j = 0; j < cols; j++) {
+                data[i][j] = rand.nextGaussian() * scale;
             }
         }
     }
-
-    // SUMA
-
-    public void add(double scalar){
-        for(int i = 0; i < rows; i++){
-            for(int j = 0; j < cols; j++){
-                data[i][j] += scalar;
-            }
+    
+    /**
+     * Multiplicación matricial
+     */
+    public Matrix multiply(Matrix other) {
+        if (this.cols != other.rows) {
+            throw new IllegalArgumentException(
+                String.format("Dimensiones incompatibles: [%d,%d] x [%d,%d]",
+                              this.rows, this.cols, other.rows, other.cols));
         }
-    }
-
-    public void add(Matrix m){
-        if (this.rows != m.rows || this.cols != m.cols) {
-            throw new IllegalArgumentException("Dimensiones no coinciden para suma.");
-        }
-        for(int i = 0; i < rows; i++){
-            for(int j = 0; j < cols; j++){
-                data[i][j] += m.data[i][j];
-            }
-        }
-    }
-
-    public Matrix addMatrices(Matrix a, Matrix b){
-        Matrix temp = new Matrix(a.rows, a.cols);
-        if (a.rows != b.rows || a.cols != b.cols) {
-            throw new IllegalArgumentException("Dimensiones no coinciden para suma.");
-        }
-        for(int i = 0; i < a.rows; i++){
-            for(int j = 0; j < a.cols; j++){
-                temp.data[i][j] = a.data[i][j] + b.data[i][j];
-            }
-        }
-        return temp;
-    }
-
-    // RESTA
-
-    public void subtract(double scalar){
-        for(int i = 0; i < rows; i++){
-            for(int j = 0; j < cols; j++){
-                data[i][j] -= scalar;
-            }
-        }
-    }
-
-    public void subtract(Matrix m){
-        if (this.rows != m.rows || this.cols != m.cols) {
-            throw new IllegalArgumentException("Dimensiones no coinciden para resta.");
-        }
-        for(int i = 0; i < rows; i++){
-            for(int j = 0; j < cols; j++){
-                data[i][j] -= m.data[i][j];
-            }
-        }
-    }
-
-    public Matrix subtractMatrices(Matrix a, Matrix b){
-        Matrix temp = new Matrix(a.rows, a.cols);
-        if (a.rows != b.rows || a.cols != b.cols) {
-            throw new IllegalArgumentException("Dimensiones no coinciden para resta.");
-        }
-        for(int i = 0; i < a.rows; i++){
-            for(int j = 0; j < a.cols; j++){
-                temp.data[i][j] = a.data[i][j] - b.data[i][j];
-            }
-        }
-        return temp;
-    }
-
-    // MULTIPLICACION MATRICIAL
-
-    public void multiply(Matrix a){
-        if (this.cols != a.rows) {
-            throw new IllegalArgumentException("Dimensiones incompatibles para la multiplicacion.");
-        }
-        Matrix temp = new Matrix(this.rows, a.cols);
-        for (int i = 0; i < temp.rows; i++) {
-            for (int j = 0; j < temp.cols; j++) {
+        
+        Matrix result = new Matrix(this.rows, other.cols);
+        
+        for (int i = 0; i < result.rows; i++) {
+            for (int j = 0; j < result.cols; j++) {
                 double sum = 0;
                 for (int k = 0; k < this.cols; k++) {
-                    sum += this.data[i][k] * a.data[k][j];
+                    sum += this.data[i][k] * other.data[k][j];
                 }
-                temp.data[i][j] = sum;
+                result.data[i][j] = sum;
             }
         }
-        this.data = temp.data;
-        this.rows = temp.rows;
-        this.cols = temp.cols;
-    } 
-
-    public Matrix multiplyMatrices(Matrix a, Matrix b){
-        if (a.cols != b.rows) {
-            throw new IllegalArgumentException("Dimensiones incompatibles para la multiplicacion.");
-        }
-        Matrix temp = new Matrix(a.rows, b.cols);
-        for(int i = 0; i < temp.rows; i++){
-            for(int j = 0; j < temp.cols; j++){
-                double sum = 0;
-                for(int k = 0; k < a.cols; k++){
-                    sum += a.data[i][k] * b.data[k][j];
-                }
-                temp.data[i][j] = sum;
-            }
-        }
-        return temp;
+        
+        return result;
     }
-
-    // MULTIPLICACION HADAMARD
-
-    public void hadamardProduct(Matrix a) {
-        if (this.rows != a.rows || this.cols != a.cols) {
-            throw new IllegalArgumentException("Dimensiones no coinciden para el producto de hadamard.");
-        }
-        for (int i = 0; i < rows; i++) {
-            for (int j = 0; j < cols; j++) {
-                this.data[i][j] *= a.data[i][j];
-            }
-        }
-    }
-
-    public Matrix hadamardProductMatrices(Matrix a, Matrix b) {
-        if (a.rows != b.rows || a.cols != b.cols) {
-            throw new IllegalArgumentException("Dimensiones no coinciden para el producto de hadamard.");
-        }
-        Matrix temp = new Matrix(a.rows, b.cols);
-        for (int i = 0; i < a.rows; i++) {
-            for (int j = 0; j < a.cols; j++) {
-                temp.data[i][j] = a.data[i][j] * b.data[i][j];
-            }
-        }
-        return temp;
-    }
-
-    // MULTIPLICACION ESCALAR
-
-    public void scalarProduct(double scalar) {
-        for (int i = 0; i < rows; i++) {
-            for (int j = 0; j < cols; j++) {
-                this.data[i][j] *= scalar;
-            }
-        }
-    }
-
-    public Matrix scalarProductMatrices(Matrix a, double scalar) {
-        Matrix temp = new Matrix(a.rows, a.cols);
-        for (int i = 0; i < a.rows; i++) {
-            for (int j = 0; j < a.cols; j++) {
-                temp.data[i][j] = a.data[i][j] * scalar;
-            }
-        }
-        return temp;
-    }
-
-    // TRANSPUESTA
-
-    public static Matrix transpose(Matrix a) {
-        Matrix temp = new Matrix(a.cols, a.rows);
-        for (int i = 0; i < a.rows; i++) {
-            for (int j = 0; j < a.cols; j++) {
-                temp.data[j][i] = a.data[i][j];
-            }
-        }
-        return temp;
-    }
-
-    // CONVERSIONES
     
-    public static Matrix fromArray(double[] arr) {
-        Matrix temp = new Matrix(arr.length, 1);
-        for (int i = 0; i < arr.length; i++) {
-            temp.data[i][0] = arr[i];
+    /**
+     * Suma de matrices
+     */
+    public Matrix add(Matrix other) {
+        if (this.rows != other.rows || this.cols != other.cols) {
+            throw new IllegalArgumentException("Dimensiones incompatibles para suma");
         }
-        return temp;
+        
+        Matrix result = new Matrix(rows, cols);
+        for (int i = 0; i < rows; i++) {
+            for (int j = 0; j < cols; j++) {
+                result.data[i][j] = this.data[i][j] + other.data[i][j];
+            }
+        }
+        return result;
     }
-
+    
+    /**
+     * Resta de matrices
+     */
+    public Matrix subtract(Matrix other) {
+        if (this.rows != other.rows || this.cols != other.cols) {
+            throw new IllegalArgumentException("Dimensiones incompatibles para resta");
+        }
+        
+        Matrix result = new Matrix(rows, cols);
+        for (int i = 0; i < rows; i++) {
+            for (int j = 0; j < cols; j++) {
+                result.data[i][j] = this.data[i][j] - other.data[i][j];
+            }
+        }
+        return result;
+    }
+    
+    /**
+     * Multiplicación elemento por elemento (Hadamard)
+     */
+    public Matrix hadamard(Matrix other) {
+        if (this.rows != other.rows || this.cols != other.cols) {
+            throw new IllegalArgumentException("Dimensiones incompatibles");
+        }
+        
+        Matrix result = new Matrix(rows, cols);
+        for (int i = 0; i < rows; i++) {
+            for (int j = 0; j < cols; j++) {
+                result.data[i][j] = this.data[i][j] * other.data[i][j];
+            }
+        }
+        return result;
+    }
+    
+    /**
+     * Multiplicación por escalar
+     */
+    public Matrix scale(double scalar) {
+        Matrix result = new Matrix(rows, cols);
+        for (int i = 0; i < rows; i++) {
+            for (int j = 0; j < cols; j++) {
+                result.data[i][j] = this.data[i][j] * scalar;
+            }
+        }
+        return result;
+    }
+    
+    /**
+     * Transpuesta
+     */
+    public Matrix transpose() {
+        Matrix result = new Matrix(cols, rows);
+        for (int i = 0; i < rows; i++) {
+            for (int j = 0; j < cols; j++) {
+                result.data[j][i] = this.data[i][j];
+            }
+        }
+        return result;
+    }
+    
+    /**
+     * Aplica una función a cada elemento
+     */
+    public Matrix map(java.util.function.DoubleUnaryOperator function) {
+        Matrix result = new Matrix(rows, cols);
+        for (int i = 0; i < rows; i++) {
+            for (int j = 0; j < cols; j++) {
+                result.data[i][j] = function.applyAsDouble(this.data[i][j]);
+            }
+        }
+        return result;
+    }
+    
+    /**
+     * Convierte a array 1D (para vector columna)
+     */
     public double[] toArray() {
-        double[] temp = new double[rows * cols];
-        int k = 0;
-        for (int i = 0; i < rows; i++) {
-            for (int j = 0; j < cols; j++) {
-                temp[k++] = data[i][j];
-            }
+        if (cols != 1) {
+            throw new IllegalStateException("Solo se puede convertir matriz columna a array");
         }
-        return temp;
-    }
-
-    // APLICA ACTIVACIONES A CADA ELEMENTO
-
-    public void map(ActivationFunction func) {
+        double[] array = new double[rows];
         for (int i = 0; i < rows; i++) {
-            for (int j = 0; j < cols; j++) {
-                this.data[i][j] = func.apply(this.data[i][j]);
-            }
+            array[i] = data[i][0];
         }
+        return array;
     }
     
-    public static Matrix map(Matrix m, ActivationFunction func) {
-        Matrix temp = new Matrix(m.rows, m.cols);
-        for (int i = 0; i < m.rows; i++) {
-            for (int j = 0; j < m.cols; j++) {
-                temp.data[i][j] = func.apply(m.data[i][j]);
-            }
-        }
-        return temp;
+    /**
+     * Obtiene un elemento
+     */
+    public double get(int row, int col) {
+        return data[row][col];
     }
     
-    public interface ActivationFunction {
-        double apply(double x);
+    /**
+     * Establece un elemento
+     */
+    public void set(int row, int col, double value) {
+        data[row][col] = value;
     }
-
+    
+    /**
+     * Getters
+     */
+    public int getRows() {
+        return rows;
+    }
+    
+    public int getCols() {
+        return cols;
+    }
+    
+    public double[][] getData() {
+        return data;
+    }
+    
+    /**
+     * Crea una copia de la matriz
+     */
+    public Matrix copy() {
+        return new Matrix(this.data);
+    }
+    
+    /**
+     * Imprime la matriz
+     */
+    public void print() {
+        System.out.println("Matrix [" + rows + "x" + cols + "]:");
+        for (int i = 0; i < Math.min(rows, 5); i++) {
+            for (int j = 0; j < Math.min(cols, 5); j++) {
+                System.out.printf("%8.4f ", data[i][j]);
+            }
+            if (cols > 5) System.out.print("...");
+            System.out.println();
+        }
+        if (rows > 5) System.out.println("...");
+    }
+    
+    /**
+     * Suma de todos los elementos
+     */
+    public double sum() {
+        double total = 0;
+        for (int i = 0; i < rows; i++) {
+            for (int j = 0; j < cols; j++) {
+                total += data[i][j];
+            }
+        }
+        return total;
+    }
 }
