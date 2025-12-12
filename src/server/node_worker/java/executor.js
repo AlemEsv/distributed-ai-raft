@@ -16,7 +16,9 @@ function trainModel(inputPath, modelId) {
             'train',
             inputPath,
             modelId
-        ]);
+        ], {
+            cwd: path.dirname(JAR_PATH)
+        });
         
         let stdout = '';
         let stderr = '';
@@ -37,7 +39,7 @@ function trainModel(inputPath, modelId) {
                     success: true,
                     modelId,
                     output: stdout,
-                    modelPath: path.join(MODELS_PATH, `${modelId}.bin`)
+                    modelPath: path.join(path.dirname(JAR_PATH), 'models', `${modelId}.bin`)
                 });
             } else {
                 reject(new Error(`Java terminó con código ${code}: ${stderr}`));
@@ -64,12 +66,20 @@ function predict(modelId, inputVector) {
             'predict',
             modelId,
             inputStr
-        ]);
+        ], {
+            cwd: path.dirname(JAR_PATH)
+        });
         
         let stdout = '';
+        let stderr = '';
         
         process.stdout.on('data', (data) => {
             stdout += data.toString();
+        });
+
+        process.stderr.on('data', (data) => {
+            stderr += data.toString();
+            console.error(`[JAVA ERR] ${data.toString().trim()}`);
         });
         
         process.on('close', (code) => {
@@ -82,7 +92,7 @@ function predict(modelId, inputVector) {
                     resolve({ success: true, prediction: stdout.trim() });
                 }
             } else {
-                reject(new Error(`Predicción falló con código ${code}`));
+                reject(new Error(`Predicción falló con código ${code}: ${stderr}`));
             }
         });
     });

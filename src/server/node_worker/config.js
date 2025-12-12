@@ -31,5 +31,5 @@ module.exports = {
     peerPort: allNodes[nodeId].peerPort,
     httpPort: allNodes[nodeId].httpPort,
     peers,
-    javaJar: './core_ia.jar'
+    javaJar: 'src/core/core.jar'
 };

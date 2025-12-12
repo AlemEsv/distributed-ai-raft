@@ -85,12 +85,12 @@ function generateHTML() {
     </div>
     
     <div class="card">
-        <h3>📁 Archivos en Disco (${repl.filesOnDisk.length})</h3>
+        <h3>Archivos en Disco (${repl.filesOnDisk.length})</h3>
         ${repl.filesOnDisk.map(f => `<div class="log-entry">📄 ${f}</div>`).join('') || '<p>Sin archivos</p>'}
     </div>
     
     <div class="card">
-        <h3>📜 Log de Operaciones (${repl.logEntries.length})</h3>
+        <h3>Log de Operaciones (${repl.logEntries.length})</h3>
         ${repl.logEntries.slice(-10).reverse().map(e => `
             <div class="log-entry">
                 <strong>[${e.index}]</strong> ${e.command} - ${e.filename} 
