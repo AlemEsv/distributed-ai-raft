@@ -38,5 +38,5 @@ Sistema híbrido (Python, Node.js, Java) para el entrenamiento distribuido de re
 3. **Iniciar Cliente:**
 
     ```bash
-    python src/client/gui_app.py
+    python src/client/web_app.py
     ```

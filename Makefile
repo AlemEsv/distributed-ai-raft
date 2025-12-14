@@ -1,4 +1,4 @@
-.PHONY: all core client client-web server-nodes clean stop
+.PHONY: all core client server-nodes clean stop
 
 # Compilar e iniciar todo el sistema
 all: stop core server-nodes client
@@ -26,15 +26,10 @@ server-nodes:
 	@timeout /t 2 /nobreak >nul
 	@cmd /c start "Node C" node src/server/node_worker/server.js Node_C
 
-# Iniciar Cliente
-client:
-	@echo "Iniciando Cliente..."
-	@cmd /c start "Cliente GUI" .venv\Scripts\python.exe src/client/gui_app.py
-
 # Iniciar Cliente Web
-client-web:
+client:
 	@echo "Iniciando Cliente Web..."
-	@cmd /c start "Cliente Web Flask" .venv\Scripts\python.exe src/client/web_app.py"
+	@cmd /c start "Cliente Web Flask" .venv\Scripts\python.exe src/client/web_app.py
 
 # Limpiar archivos
 clean:
