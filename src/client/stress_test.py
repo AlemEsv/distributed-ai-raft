@@ -7,45 +7,57 @@ from datetime import datetime
 from tcp_client import AIClient
 from statistics import mean, median, stdev
 
+# Variables globales para configuración
 NUM_SEQ = 100
 NUM_CONC = 500
 THREADS = 50
-MNIST = os.path.join(os.path.dirname(__file__), '../core/datasets/mnist/mnist.csv')
 
 results = {'sequential': {'success': 0, 'errors': 0, 'times': []}, 
            'concurrent': {'success': 0, 'errors': 0, 'times': []}}
 lock = threading.Lock()
 
-def run_sequential():
-    print(f"Secuencial: {NUM_SEQ} peticiones\n")
+def run_sequential(num_requests=100, model_id="test_model"):
+    global NUM_SEQ
+    NUM_SEQ = num_requests
+    print(f"Secuencial: {NUM_SEQ} peticiones (Modelo: {model_id})\n")
     client, success, errors, times = AIClient(), 0, 0, []
     start = time.time()
     
     for i in range(NUM_SEQ):
         t0 = time.time()
         try:
-            resp = client.predict("test_model", [random.random() for _ in range(784)])
+            resp = client.predict(model_id, [random.random() for _ in range(784)])
             times.append((time.time() - t0) * 1000)
             if resp.get('success'):
                 success += 1
-                if (i + 1) % 20 == 0:
-                    print(f"[{i+1}/{NUM_SEQ}] Avg: {mean(times[-20:]):.1f}ms")
             else:
                 errors += 1
         except:
             errors += 1
     
     duration = time.time() - start
-    results['sequential'].update({'success': success, 'errors': errors, 'times': times, 'duration': duration})
-    client.close()
-    print_results('SECUENCIAL', success, errors, times, duration, NUM_SEQ)
+    
+    stats = {
+        'total': NUM_SEQ,
+        'success': success,
+        'errors': errors,
+        'duration': duration,
+        'throughput': NUM_SEQ / duration if duration > 0 else 0,
+        'avg_time': mean(times) if times else 0,
+        'median_time': median(times) if times else 0,
+        'min_time': min(times) if times else 0,
+        'max_time': max(times) if times else 0
+    }
+    
+    results['sequential'] = stats
+    return stats
 
-def worker(wid, n):
+def worker(wid, n, model_id):
     client = AIClient()
     for i in range(n):
         t0 = time.time()
         try:
-            resp = client.predict("test_model", [random.random() for _ in range(784)])
+            resp = client.predict(model_id, [random.random() for _ in range(784)])
             rt = (time.time() - t0) * 1000
             with lock:
                 if resp.get('success'):
@@ -58,30 +70,43 @@ def worker(wid, n):
                 results['concurrent']['errors'] += 1
     client.close()
 
-def run_concurrent():
-    print(f"Concurrente: {NUM_CONC} peticiones / {THREADS} threads\n")
+def run_concurrent(num_requests=500, num_threads=50, model_id="test_model"):
+    global NUM_CONC, THREADS
+    NUM_CONC = num_requests
+    THREADS = num_threads
+    
+    print(f"Concurrente: {NUM_CONC} peticiones / {THREADS} threads (Modelo: {model_id})\n")
     results['concurrent'] = {'success': 0, 'errors': 0, 'times': []}
-    per_thread = NUM_CONC // THREADS
-    threads = [threading.Thread(target=worker, args=(i, per_thread)) for i in range(THREADS)]
+    per_thread = max(1, NUM_CONC // THREADS)
+    
+    threads = [threading.Thread(target=worker, args=(i, per_thread, model_id)) for i in range(THREADS)]
     
     start = time.time()
     for t in threads:
         t.start()
     
-    while any(t.is_alive() for t in threads):
-        with lock:
-            done = results['concurrent']['success'] + results['concurrent']['errors']
-        print(f"Progreso: {done}/{NUM_CONC}", end='\r')
-        time.sleep(0.5)
-    
     for t in threads:
         t.join()
     
     duration = time.time() - start
-    results['concurrent']['duration'] = duration
-    print()
-    print_results('CONCURRENTE', results['concurrent']['success'], 
-                  results['concurrent']['errors'], results['concurrent']['times'], duration, NUM_CONC)
+    times = results['concurrent']['times']
+    success = results['concurrent']['success']
+    errors = results['concurrent']['errors']
+    
+    stats = {
+        'total': NUM_CONC,
+        'success': success,
+        'errors': errors,
+        'duration': duration,
+        'throughput': NUM_CONC / duration if duration > 0 else 0,
+        'avg_time': mean(times) if times else 0,
+        'median_time': median(times) if times else 0,
+        'min_time': min(times) if times else 0,
+        'max_time': max(times) if times else 0
+    }
+    
+    results['concurrent'].update(stats)
+    return stats
 
 def print_results(name, success, errors, times, dur, total):
     print(f"{name}\n")

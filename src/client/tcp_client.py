@@ -20,7 +20,7 @@ class AIClient:
             node = NODES[self.idx]
             try:
                 self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                self.sock.settimeout(600)  # 10 minutos para operaciones largas como entrenamiento
+                self.sock.settimeout(1800)  # 30 minutos para operaciones largas como entrenamiento
                 self.sock.connect((node['host'], node['port']))
                 self.node = node
                 return True

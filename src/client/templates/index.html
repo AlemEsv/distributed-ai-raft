@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de IA Distribuido</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .section { display: none; }
+        .section.active { display: block; }
+        .nav a { cursor: pointer; }
+        .nav a.active { border-bottom: 2px solid #fff; font-weight: bold; }
+        
+        /* Tab specific styles */
+        .canvas-container {
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            cursor: crosshair;
+            margin: 10px auto;
+            display: block;
+        }
+        
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .metric {
+            background: #f7fafc;
+            padding: 10px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        
+        .metric-label { display: block; font-size: 0.8em; color: #718096; }
+        .metric-value { display: block; font-size: 1.2em; font-weight: bold; color: #2d3748; }
+        .success-text { color: #48bb78; }
+        .error-text { color: #f56565; }
+    </style>
+</head>
+<body>
+    <div class="container wide">
+        <h1>Sistema de IA Distribuido</h1>
+        <p class="subtitle">Panel de Control Unificado</p>
+        
+        <nav class="nav">
+            <a onclick="showSection('train')" id="nav-train" class="active">Entrenar</a>
+            <a onclick="showSection('predict')" id="nav-predict">Predecir</a>
+            <a onclick="showSection('stress')" id="nav-stress">Probar</a>
+        </nav>
+
+        <!-- SECCIÓN ENTRENAMIENTO -->
+        <div id="section-train" class="section active">
+            <form id="trainForm">
+                <div class="form-group">
+                    <label>Nombre del Modelo</label>
+                    <input type="text" id="modelName" placeholder="Ej: modelo_v1" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Dataset</label>
+                    <select id="datasetSelect">
+                        <option value="mnist">MNIST (Dígitos)</option>
+                        <option value="fashionmnist">Fashion MNIST (Ropa)</option>
+                    </select>
+                </div>
+
+                <button type="submit">Iniciar Entrenamiento</button>
+            </form>
+            <div id="trainStatus" class="status" style="display:none;"></div>
+        </div>
+
+        <!-- SECCIÓN PREDICCIÓN -->
+        <div id="section-predict" class="section">
+            <form id="predictForm">
+                <div class="form-group">
+                    <label>Modelo</label>
+                    <select id="modelId" required>
+                        <option value="">Cargando modelos...</option>
+                    </select>
+                    <small onclick="loadModels()" style="cursor:pointer; color:blue;">Recargar lista</small>
+                </div>
+
+                <div class="form-group">
+                    <label>Modo de Entrada</label>
+                    <div class="radio-group">
+                        <label><input type="radio" name="inputMode" value="canvas" checked> Dibujar</label>
+                        <label><input type="radio" name="inputMode" value="text"> Texto (CSV)</label>
+                    </div>
+                </div>
+
+                <div id="canvasGroup">
+                    <canvas id="drawCanvas" width="280" height="280" class="canvas-container"></canvas>
+                    <button type="button" onclick="clearCanvas()" class="secondary">Limpiar</button>
+                </div>
+
+                <div id="textInputGroup" style="display: none;">
+                    <label>Vector de entrada (784 valores separados por coma)</label>
+                    <textarea id="inputVector" rows="5" placeholder="0.0, 0.5, ..."></textarea>
+                </div>
+
+                <button type="submit" style="margin-top: 15px;">Predecir</button>
+            </form>
+
+            <div id="predictResult" class="result">
+                <div class="result-label">Resultado</div>
+                <div id="resultValue" class="result-value">-</div>
+            </div>
+            <div id="predictStatus" class="status" style="display:none;"></div>
+        </div>
+
+        <!-- SECCIÓN RESULTADOS -->
+        <div id="section-results" class="section">
+            <button onclick="loadResults()" class="secondary">Actualizar Tabla</button>
+            <div class="table-container" style="margin-top: 20px;">
+                <table id="resultsTable">
+                    <thead>
+                        <tr>
+                            <th>ID Modelo</th>
+                            <th>Precisión</th>
+                            <th>Fecha</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td colspan="3" style="text-align:center">Cargando...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- SECCIÓN PROBAR (STRESS TEST) -->
+        <div id="section-stress" class="section">
+            <div class="form-group">
+                <label>Modelo a Probar</label>
+                <select id="stressModelId" required>
+                    <option value="">Cargando modelos...</option>
+                </select>
+                <small onclick="loadStressModels()" style="cursor:pointer; color:blue;">Recargar lista</small>
+            </div>
+
+            <div class="stress-config">
+                <div class="config-section">
+                    <h3>Secuencial</h3>
+                    <div class="form-group">
+                        <label>Peticiones</label>
+                        <input type="number" id="seqRequests" value="100" min="1" max="1000">
+                    </div>
+                    <button id="runSeqBtn" class="test-btn">Ejecutar</button>
+                </div>
+                
+                <div class="config-section">
+                    <h3>Concurrente</h3>
+                    <div class="form-group">
+                        <label>Peticiones</label>
+                        <input type="number" id="concRequests" value="500" min="1" max="5000">
+                    </div>
+                    <div class="form-group">
+                        <label>Hilos</label>
+                        <input type="number" id="threads" value="50" min="1" max="200">
+                    </div>
+                    <button id="runConcBtn" class="test-btn success">Ejecutar</button>
+                </div>
+            </div>
+
+            <div id="stressStatus" class="status" style="display:none;"></div>
+            
+            <div id="stressResults" style="margin-top: 20px;">
+                <!-- Resultados se inyectarán aquí -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- NAVEGACIÓN ---
+        function showSection(sectionId) {
+            document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav a').forEach(el => el.classList.remove('active'));
+            
+            document.getElementById('section-' + sectionId).classList.add('active');
+            document.getElementById('nav-' + sectionId).classList.add('active');
+
+            if(sectionId === 'predict') loadModels();
+            if(sectionId === 'stress') loadStressModels();
+        }
+
+        // --- ENTRENAMIENTO ---
+        document.getElementById('trainForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const status = document.getElementById('trainStatus');
+            status.style.display = 'block';
+            status.className = 'status loading';
+            status.textContent = 'Entrenando...';
+
+            try {
+                const res = await fetch('/train', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        model_name: document.getElementById('modelName').value,
+                        dataset: document.getElementById('datasetSelect').value
+                    })
+                });
+                const data = await res.json();
+                if(data.success) {
+                    status.className = 'status success';
+                    status.textContent = `Entrenamiento completado. ID: ${data.modelId}`;
+                } else {
+                    throw new Error(data.error);
+                }
+            } catch(err) {
+                status.className = 'status error';
+                status.textContent = err.message || 'Error de conexión';
+            }
+        });
+
+        // --- PREDICCIÓN ---
+        const canvas = document.getElementById('drawCanvas');
+        const ctx = canvas.getContext('2d');
+        let isDrawing = false;
+
+        ctx.fillStyle = 'white';
+        ctx.fillRect(0, 0, 280, 280);
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 15;
+        ctx.lineCap = 'round';
+
+        canvas.addEventListener('mousedown', (e) => { isDrawing = true; ctx.beginPath(); ctx.moveTo(e.offsetX, e.offsetY); });
+        canvas.addEventListener('mousemove', (e) => { if(isDrawing) { ctx.lineTo(e.offsetX, e.offsetY); ctx.stroke(); } });
+        canvas.addEventListener('mouseup', () => { isDrawing = false; });
+        canvas.addEventListener('mouseout', () => { isDrawing = false; });
+
+        function clearCanvas() {
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, 280, 280);
+        }
+
+        function getCanvasVector() {
+            const imgData = ctx.getImageData(0, 0, 280, 280);
+            const pixels = [];
+            for(let y = 0; y < 28; y++) {
+                for(let x = 0; x < 28; x++) {
+                    // Promediar el bloque de 10x10 píxeles
+                    let sum = 0;
+                    for (let dy = 0; dy < 10; dy++) {
+                        for (let dx = 0; dx < 10; dx++) {
+                            const px = (x * 10) + dx;
+                            const py = (y * 10) + dy;
+                            const idx = (py * 280 + px) * 4;
+                            // Invertir color: Canvas es blanco(255)->0, Negro(0)->1
+                            sum += (1 - (imgData.data[idx] / 255));
+                        }
+                    }
+                    const avg = sum / 100; // 10x10 = 100 píxeles
+                    pixels.push(avg.toFixed(3));
+                }
+            }
+            return pixels.join(',');
+        }
+
+        document.querySelectorAll('input[name="inputMode"]').forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                document.getElementById('textInputGroup').style.display = e.target.value === 'text' ? 'block' : 'none';
+                document.getElementById('canvasGroup').style.display = e.target.value === 'canvas' ? 'block' : 'none';
+            });
+        });
+
+        async function loadModels() {
+            const select = document.getElementById('modelId');
+            try {
+                const res = await fetch('/list_models');
+                const data = await res.json();
+                if(data.success && data.models) {
+                    select.innerHTML = data.models.map(m => `<option value="${m.id}">${m.id}</option>`).join('');
+                }
+            } catch(e) { console.error(e); }
+        }
+
+        document.getElementById('predictForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const status = document.getElementById('predictStatus');
+            const resultVal = document.getElementById('resultValue');
+            const resultDiv = document.getElementById('predictResult');
+            
+            status.style.display = 'block';
+            status.className = 'status loading';
+            status.textContent = 'Procesando...';
+            resultDiv.classList.remove('show');
+
+            const mode = document.querySelector('input[name="inputMode"]:checked').value;
+            const vector = mode === 'text' ? 
+                document.getElementById('inputVector').value.split(',').map(x => parseFloat(x.trim())) : 
+                getCanvasVector().split(',').map(parseFloat);
+
+            try {
+                const res = await fetch('/predict', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        model_id: document.getElementById('modelId').value,
+                        input_vector: vector
+                    })
+                });
+                const data = await res.json();
+                status.style.display = 'none';
+                
+                if(data.success) {
+                    resultVal.textContent = data.prediction;
+                    resultDiv.classList.add('show');
+                } else {
+                    throw new Error(data.error);
+                }
+            } catch(err) {
+                status.style.display = 'block';
+                status.className = 'status error';
+                status.textContent = err.message;
+            }
+        });
+
+        // --- STRESS TEST (PROBAR) ---
+        async function loadStressModels() {
+            const select = document.getElementById('stressModelId');
+            try {
+                const res = await fetch('/list_models');
+                const data = await res.json();
+                if(data.success && data.models) {
+                    select.innerHTML = data.models.map(m => `<option value="${m.id}">${m.id}</option>`).join('');
+                }
+            } catch(e) { console.error(e); }
+        }
+
+        async function runStressTest(type) {
+            const status = document.getElementById('stressStatus');
+            const resultsDiv = document.getElementById('stressResults');
+            const modelId = document.getElementById('stressModelId').value;
+
+            if (!modelId) {
+                alert("Por favor selecciona un modelo primero");
+                return;
+            }
+            
+            status.style.display = 'block';
+            status.className = 'status loading';
+            status.textContent = `Ejecutando test ${type} en modelo ${modelId}...`;
+            resultsDiv.innerHTML = '';
+
+            const payload = type === 'sequential' 
+                ? { requests: document.getElementById('seqRequests').value, model_id: modelId }
+                : { 
+                    requests: document.getElementById('concRequests').value,
+                    threads: document.getElementById('threads').value,
+                    model_id: modelId
+                  };
+
+            try {
+                const res = await fetch(`/stress/${type}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                
+                if(data.success) {
+                    status.className = 'status success';
+                    status.textContent = 'Test completado';
+                    
+                    const s = data.stats;
+                    resultsDiv.innerHTML = `
+                        <div class="result-card">
+                            <h3>Resultados ${type.toUpperCase()}</h3>
+                            <div class="metrics">
+                                <div class="metric"><span class="metric-label">Total</span><span class="metric-value">${s.total}</span></div>
+                                <div class="metric"><span class="metric-label">Exitosas</span><span class="metric-value success-text">${s.success}</span></div>
+                                <div class="metric"><span class="metric-label">Fallidas</span><span class="metric-value error-text">${s.errors}</span></div>
+                                <div class="metric"><span class="metric-label">Duración</span><span class="metric-value">${s.duration.toFixed(2)}s</span></div>
+                                <div class="metric"><span class="metric-label">Throughput</span><span class="metric-value">${s.throughput.toFixed(1)} req/s</span></div>
+                                <div class="metric"><span class="metric-label">Avg Latency</span><span class="metric-value">${s.avg_time.toFixed(1)}ms</span></div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    throw new Error(data.error);
+                }
+            } catch(err) {
+                status.className = 'status error';
+                status.textContent = err.message;
+            }
+        }
+
+        document.getElementById('runSeqBtn').addEventListener('click', () => runStressTest('sequential'));
+        document.getElementById('runConcBtn').addEventListener('click', () => runStressTest('concurrent'));
+
+    </script>
+</body>
+</html>

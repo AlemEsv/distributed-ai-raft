@@ -12,17 +12,40 @@ def index():
 @app.route('/train', methods=['POST'])
 def train():
     try:
-        model_name = request.form.get('model_name')
-        file = request.files.get('file')
+        data = request.get_json()
+        model_name = data.get('model_name')
+        dataset = data.get('dataset')
         
-        if not model_name or not file:
-            return jsonify({'success': False, 'error': 'Faltan datos (nombre o archivo)'}), 400
+        if not model_name or not dataset:
+            return jsonify({'success': False, 'error': 'Faltan datos'}), 400
             
-        # Leer bytes del archivo subido
-        file_bytes = file.read()
+        # Enviar solicitud de entrenamiento al cluster
+        response = client.train_model(model_name, dataset)
+        return jsonify(response)
         
-        # Enviar al cluster
-        response = client.train_model_from_bytes(model_name, file_bytes)
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/predict', methods=['POST'])
+def predict():
+    try:
+        data = request.get_json()
+        model_id = data.get('model_id')
+        input_data = data.get('input_vector')
+        
+        if not model_id or input_data is None:
+            return jsonify({'success': False, 'error': 'Faltan datos'}), 400
+            
+        # Manejar entrada de texto o array
+        if isinstance(input_data, str):
+            try:
+                input_vector = [float(x.strip()) for x in input_data.split(',')]
+            except ValueError:
+                return jsonify({'success': False, 'error': 'Formato de vector inválido'}), 400
+        else:
+            input_vector = input_data
+
+        response = client.predict(model_id, input_vector)
         return jsonify(response)
         
     except Exception as e:
@@ -36,25 +59,28 @@ def list_models():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
-@app.route('/predict', methods=['POST'])
-def predict():
+@app.route('/stress/sequential', methods=['POST'])
+def stress_sequential():
     try:
+        import stress_test
         data = request.get_json()
-        model_id = data.get('model_id')
-        input_str = data.get('input_vector')
-        
-        if not model_id or not input_str:
-            return jsonify({'success': False, 'error': 'Faltan datos'}), 400
-            
-        # Convertir string "1, 2, 3" a lista [1.0, 2.0, 3.0]
-        try:
-            input_vector = [float(x.strip()) for x in input_str.split(',')]
-        except ValueError:
-            return jsonify({'success': False, 'error': 'Formato de vector inválido'}), 400
-            
-        response = client.predict(model_id, input_vector)
-        return jsonify(response)
-        
+        num_requests = int(data.get('requests', 100))
+        model_id = data.get('model_id', 'test_model')
+        stats = stress_test.run_sequential(num_requests, model_id)
+        return jsonify({'success': True, 'stats': stats})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/stress/concurrent', methods=['POST'])
+def stress_concurrent():
+    try:
+        import stress_test
+        data = request.get_json()
+        num_requests = int(data.get('requests', 500))
+        num_threads = int(data.get('threads', 50))
+        model_id = data.get('model_id', 'test_model')
+        stats = stress_test.run_concurrent(num_requests, num_threads, model_id)
+        return jsonify({'success': True, 'stats': stats})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
