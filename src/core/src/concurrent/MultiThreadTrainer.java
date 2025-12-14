@@ -41,12 +41,11 @@ public class MultiThreadTrainer {
             double totalLoss = trainBatchesParallel(batches, learningRate);
             
             // Mostrar progreso
-            if ((epoch + 1) % 10 == 0 || epoch == 0) {
-                double avgLoss = totalLoss / batches.length;
-                long elapsed = (System.currentTimeMillis() - startTime) / 1000;
-                System.out.printf("Epoch %d/%d - Loss: %.6f - Tiempo: %ds%n", 
-                                  epoch + 1, epochs, avgLoss, elapsed);
-            }
+            double avgLoss = totalLoss / batches.length;
+            long elapsed = (System.currentTimeMillis() - startTime) / 1000;
+            System.out.printf("%d/%d - Loss: %.6f - Tiempo: %ds%n", 
+                              epoch + 1, epochs, avgLoss, elapsed);
+            System.out.flush(); // Asegurar que se imprima inmediatamente
         }
         
         long totalTime = (System.currentTimeMillis() - startTime) / 1000;

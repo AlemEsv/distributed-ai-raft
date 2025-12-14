@@ -1,0 +1,7 @@
+{
+  "id": "test_mnist",
+  "dataset": "mnist",
+  "date": "2025-12-14",
+  "status": "Disponible",
+  "accuracy": "N/A"
+}

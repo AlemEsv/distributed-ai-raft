@@ -83,6 +83,37 @@ public class Main {
         trainer.train(data, 10, 0.01, 32); // epochs, learning rate, batch size
         System.out.println("[TRAIN] Entrenamiento completado");
         
+        // Calcular precisión
+        int correct = 0;
+        for (int i = 0; i < data.getSize(); i++) {
+            TrainingData.DataPair pair = data.getExample(i);
+            double[] output = nn.predict(pair.input);
+            
+            int predicted = 0;
+            double maxVal = output[0];
+            for (int j = 1; j < output.length; j++) {
+                if (output[j] > maxVal) {
+                    maxVal = output[j];
+                    predicted = j;
+                }
+            }
+            
+            int actual = 0;
+            maxVal = pair.output[0];
+            for (int j = 1; j < pair.output.length; j++) {
+                if (pair.output[j] > maxVal) {
+                    maxVal = pair.output[j];
+                    actual = j;
+                }
+            }
+            
+            if (predicted == actual) {
+                correct++;
+            }
+        }
+        double accuracy = (double) correct / data.getSize();
+        System.out.printf("[TRAIN] Final Accuracy: %.4f%n", accuracy);
+
         // Guardar modelo (P3 proporciona la serialización)
         String modelPath = "models/" + modelId + ".bin";
         System.out.println("[TRAIN] Guardando modelo en: " + modelPath);

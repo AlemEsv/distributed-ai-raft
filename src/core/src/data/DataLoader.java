@@ -61,15 +61,34 @@ public class DataLoader {
                         System.out.println("Dataset de imágenes detectado");
                     }
                     
-                    // Todas las columnas excepto la última son features
                     double[] input = new double[parts.length - 1];
-                    for (int i = 0; i < parts.length - 1; i++) {
-                        input[i] = Double.parseDouble(parts[i].trim());
+                    double labelValue;
+
+                    if (isImageDataset) {
+                        // MNIST/Fashion: Label es la PRIMERA columna
+                        labelValue = Double.parseDouble(parts[0].trim());
+                        for (int i = 1; i < parts.length; i++) {
+                            input[i - 1] = Double.parseDouble(parts[i].trim());
+                        }
+                    } else {
+                        // Genérico: Label es la ÚLTIMA columna
+                        for (int i = 0; i < parts.length - 1; i++) {
+                            input[i] = Double.parseDouble(parts[i].trim());
+                        }
+                        labelValue = Double.parseDouble(parts[parts.length - 1].trim());
                     }
                     
-                    // Última columna es el label
-                    double labelValue = Double.parseDouble(parts[parts.length - 1].trim());
-                    double[] output = {labelValue};
+                    double[] output;
+                    if (isImageDataset) {
+                        // One-Hot Encoding para MNIST/Fashion (10 clases)
+                        output = new double[10];
+                        int labelIndex = (int) labelValue;
+                        if (labelIndex >= 0 && labelIndex < 10) {
+                            output[labelIndex] = 1.0;
+                        }
+                    } else {
+                        output = new double[]{labelValue};
+                    }
                     
                     inputs.add(input);
                     outputs.add(output);
@@ -89,8 +108,21 @@ public class DataLoader {
         double[][] outputArray = outputs.toArray(new double[0][]);
         
         // NORMALIZACIÓN DE DATOS
-        inputArray = normalizeData(inputArray);
-        outputArray = normalizeData(outputArray);
+        if (isImageDataset) {
+            // escalar [0, 255] -> [0, 1]
+            for (int i = 0; i < inputArray.length; i++) {
+                for (int j = 0; j < inputArray[0].length; j++) {
+                    if (inputArray[i][j] > 1.0) {
+                        inputArray[i][j] /= 255.0;
+                    }
+                }
+            }
+        } else {
+            // Para otros datos, usar Min-Max
+            inputArray = normalizeData(inputArray);
+        }
+        // Los outputs ya son 0 o 1 (One-Hot), no necesitan normalización
+        // outputArray = normalizeData(outputArray); 
 
         if (inputArray[0].length == 784) {
             System.out.println("Formato compatible");
