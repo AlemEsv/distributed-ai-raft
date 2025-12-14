@@ -32,3 +32,7 @@ src/server/node_worker/disk/
 
 # --- Cliente ---
 src/client/stress_test_data.csv
+
+# Datasets generados
+src/core/datasets/mnist.csv
+src/core/datasets/fashionmnist.csv
