@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de IA</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container wide">
+        <h1>Resultados</h1>
+        <p class="subtitle">Sistema Distribuido IA</p>
+        
+        <nav class="nav">
+            <a href="/train">Entrenar</a>
+            <a href="/predict">Predecir</a>
+            <a href="/results" class="active">Resultados</a>
+            <a href="/stress">Stress Test</a>
+        </nav>
+
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-label">Entrenamientos</div>
+                <div class="stat-value" id="trainCount">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Predicciones</div>
+                <div class="stat-value" id="predictCount">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Errores</div>
+                <div class="stat-value" id="errorCount">-</div>
+            </div>
+        </div>
+
+        <button class="refresh-btn" onclick="loadLogs()">Actualizar</button>
+        
+        <div class="logs" id="logs">
+            <div class="empty">Cargando registros...</div>
+        </div>
+    </div>
+
+    <script>
+        let logData = [];
+
+        async function loadLogs() {
+            try {
+                const res = await fetch('/logs');
+                const data = await res.json();
+                
+                if (data.success) {
+                    logData = data.logs || [];
+                    document.getElementById('trainCount').textContent = data.stats?.trains || 0;
+                    document.getElementById('predictCount').textContent = data.stats?.predictions || 0;
+                    document.getElementById('errorCount').textContent = data.stats?.errors || 0;
+                    renderLogs();
+                }
+            } catch (err) {
+                document.getElementById('logs').innerHTML = '<div class="empty">Error al cargar registros</div>';
+            }
+        }
+
+        function renderLogs() {
+            const logsDiv = document.getElementById('logs');
+            
+            if (logData.length === 0) {
+                logsDiv.innerHTML = '<div class="empty">No hay registros disponibles</div>';
+                return;
+            }
+
+            logsDiv.innerHTML = logData.map(log => {
+                const time = new Date(log.timestamp).toLocaleTimeString();
+                const typeClass = log.type === 'success' ? 'log-success' : log.type === 'error' ? 'log-error' : 'log-info';
+                return `<div class="log-entry"><span class="log-time">[${time}]</span> <span class="${typeClass}">${log.message}</span></div>`;
+            }).reverse().join('');
+        }
+
+        loadLogs();
+        setInterval(loadLogs, 5000);
+    </script>
+</body>
+</html>

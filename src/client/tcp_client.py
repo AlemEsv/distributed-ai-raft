@@ -12,105 +12,67 @@ NODES = [
 class AIClient:
     def __init__(self):
         self.sock = None
-        self.current_node_index = 0
-        self.connected_node = None
+        self.idx = 0
+        self.node = None
 
     def connect(self):
-        """Intenta conectar a cualquier nodo disponible, rotando si falla."""
-        attempts = 0
-        while attempts < len(NODES):
-            node = NODES[self.current_node_index]
+        for _ in range(len(NODES)):
+            node = NODES[self.idx]
             try:
-                print(f"[CLIENT] Intentando conectar a {node['name']} ({node['host']}:{node['port']})...")
                 self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                self.sock.settimeout(5) # Timeout de 5 segundos
+                self.sock.settimeout(600)  # 10 minutos para operaciones largas como entrenamiento
                 self.sock.connect((node['host'], node['port']))
-                self.connected_node = node
-                print(f"[CLIENT] Conectado exitosamente a {node['name']}")
+                self.node = node
                 return True
-            except (ConnectionRefusedError, socket.timeout) as e:
-                print(f"[CLIENT] Falló conexión a {node['name']}: {e}")
+            except:
                 self.sock = None
-                self.current_node_index = (self.current_node_index + 1) % len(NODES)
-                attempts += 1
-                time.sleep(1)
-        
-        print("[CLIENT] No se pudo conectar a ningún nodo.")
+                self.idx = (self.idx + 1) % len(NODES)
+                time.sleep(0.5)
         return False
 
-    def send_request(self, request_type, payload):
-        """Envía una petición y maneja la respuesta, incluyendo reintentos por cambio de líder."""
-        if not self.sock:
-            if not self.connect():
-                return {'success': False, 'error': 'No hay conexión con el clúster'}
-
-        request = {
-            'type': request_type,
-            'payload': payload
-        }
+    def send_request(self, req_type, payload):
+        if not self.sock and not self.connect():
+            return {'success': False, 'error': 'Sin conexión'}
 
         try:
-            # Enviar mensaje delimitado por \n
-            msg_str = json.dumps(request) + '\n'
-            self.sock.sendall(msg_str.encode('utf-8'))
-
-            # Recibir respuesta
-            # Leemos buffer hasta encontrar \n
-            response_data = b""
-            while True:
+            msg = json.dumps({'type': req_type, 'payload': payload}) + '\n'
+            self.sock.sendall(msg.encode())
+            
+            data = b""
+            while b'\n' not in data:
                 chunk = self.sock.recv(4096)
                 if not chunk:
-                    raise ConnectionResetError("Conexión cerrada por el servidor")
-                response_data += chunk
-                if b'\n' in response_data:
-                    break
+                    raise ConnectionResetError()
+                data += chunk
             
-            response_str = response_data.decode('utf-8').strip()
-            response = json.loads(response_str)
-
-            # Manejar redirección de líder
-            if not response.get('success') and response.get('error') == 'No soy el líder':
-                print(f"[CLIENT] Nodo {self.connected_node['name']} no es líder. Buscando líder...")
+            resp = json.loads(data.decode().strip())
+            
+            if not resp.get('success') and resp.get('error') == 'No soy el líder':
                 self.close()
-                # Intentar con el siguiente nodo (simple round-robin por ahora)
-                # En una implementación más avanzada, el servidor podría devolver la ID del líder
-                self.current_node_index = (self.current_node_index + 1) % len(NODES)
-                return self.send_request(request_type, payload)
-
-            return response
-
-        except (ConnectionResetError, BrokenPipeError, socket.timeout, json.JSONDecodeError) as e:
-            print(f"[CLIENT] Error de comunicación: {e}")
-            self.close()
-            # Reintentar conexión
-            self.current_node_index = (self.current_node_index + 1) % len(NODES)
-            # Podríamos reintentar la petición aquí, pero por seguridad retornamos error para que la UI decida
-            return {'success': False, 'error': f'Error de red: {str(e)}'}
-
-    def train_model(self, model_name, file_path):
-        try:
-            with open(file_path, 'rb') as f:
-                file_content = f.read()
-            return self.train_model_from_bytes(model_name, file_content)
+                self.idx = (self.idx + 1) % len(NODES)
+                return self.send_request(req_type, payload)
             
-        except FileNotFoundError:
-            return {'success': False, 'error': 'Archivo no encontrado'}
+            return resp
+        except:
+            self.close()
+            self.idx = (self.idx + 1) % len(NODES)
+            return {'success': False, 'error': 'Error de red'}
 
-    def train_model_from_bytes(self, model_name, file_bytes):
-        encoded_content = base64.b64encode(file_bytes).decode('utf-8')
-        
-        payload = {
-            'model_name': model_name,
-            'data_content': encoded_content
-        }
-        return self.send_request('TRAIN_REQUEST', payload)
+    def train_model(self, model_name, dataset):
+        """
+        Entrenar modelo con dataset predefinido
+        dataset puede ser: 'mnist', 'fashionmnist'
+        """
+        return self.send_request('TRAIN_REQUEST', {'model_name': model_name, 'dataset': dataset})
 
     def predict(self, model_id, input_vector):
-        payload = {
-            'model_id': model_id,
-            'input_vector': input_vector
-        }
-        return self.send_request('PREDICT_REQUEST', payload)
+        return self.send_request('PREDICT_REQUEST', {'model_id': model_id, 'input_vector': input_vector})
+    
+    def send_message(self, message):
+        """Enviar mensaje genérico al servidor"""
+        if message.get('type') == 'LIST_MODELS':
+            return self.send_request('LIST_MODELS', {})
+        return self.send_request(message['type'], message.get('payload', {}))
 
     def close(self):
         if self.sock:
@@ -119,4 +81,4 @@ class AIClient:
             except:
                 pass
             self.sock = None
-            self.connected_node = None
+            self.node = None

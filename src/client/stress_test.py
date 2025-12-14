@@ -2,66 +2,125 @@ import time
 import random
 import threading
 import os
+import json
+from datetime import datetime
 from tcp_client import AIClient
+from statistics import mean, median, stdev
 
-# Configuración
-NUM_REQUESTS = 1000
-CONCURRENT_THREADS = 10
-TEST_FILE = "stress_test_data.csv"
+NUM_SEQ = 100
+NUM_CONC = 500
+THREADS = 50
+MNIST = os.path.join(os.path.dirname(__file__), '../core/datasets/mnist/mnist.csv')
 
-def create_dummy_file():
-    with open(TEST_FILE, "w") as f:
-        f.write("0.1,0.2,0.3,0.4\n" * 10)
+results = {'sequential': {'success': 0, 'errors': 0, 'times': []}, 
+           'concurrent': {'success': 0, 'errors': 0, 'times': []}}
+lock = threading.Lock()
 
-def run_stress_test():
-    print(f"Iniciando prueba de estrés con {NUM_REQUESTS} peticiones...")
-    create_dummy_file()
+def run_sequential():
+    print(f"Secuencial: {NUM_SEQ} peticiones\n")
+    client, success, errors, times = AIClient(), 0, 0, []
+    start = time.time()
     
-    client = AIClient()
-    success_count = 0
-    error_count = 0
-    
-    start_time = time.time()
-    
-    for i in range(NUM_REQUESTS):
-        req_type = random.choice(['TRAIN', 'PREDICT'])
-        
+    for i in range(NUM_SEQ):
+        t0 = time.time()
         try:
-            if req_type == 'TRAIN':
-                model_name = f"stress_model_{i}"
-                resp = client.train_model(model_name, TEST_FILE)
-            else:
-                model_id = "stress_model_0" # Asumimos que existe o fallará controladamente
-                input_vector = [random.random() for _ in range(4)]
-                resp = client.predict(model_id, input_vector)
-            
+            resp = client.predict("test_model", [random.random() for _ in range(784)])
+            times.append((time.time() - t0) * 1000)
             if resp.get('success'):
-                success_count += 1
-                print(f"[{i+1}/{NUM_REQUESTS}] {req_type} OK")
+                success += 1
+                if (i + 1) % 20 == 0:
+                    print(f"[{i+1}/{NUM_SEQ}] Avg: {mean(times[-20:]):.1f}ms")
             else:
-                error_count += 1
-                print(f"[{i+1}/{NUM_REQUESTS}] {req_type} ERROR: {resp.get('error')}")
-                
-        except Exception as e:
-            error_count += 1
-            print(f"[{i+1}/{NUM_REQUESTS}] EXCEPTION: {e}")
-            
-        # Pequeña pausa para no saturar mi propia máquina de desarrollo si es necesario
-        # time.sleep(0.01)
-
-    end_time = time.time()
-    duration = end_time - start_time
+                errors += 1
+        except:
+            errors += 1
     
-    print("\n=== RESULTADOS DE ESTRÉS ===")
-    print(f"Total Peticiones: {NUM_REQUESTS}")
-    print(f"Exitosas: {success_count}")
-    print(f"Fallidas: {error_count}")
-    print(f"Tiempo Total: {duration:.2f}s")
-    print(f"Rendimiento: {NUM_REQUESTS/duration:.2f} req/s")
-    
+    duration = time.time() - start
+    results['sequential'].update({'success': success, 'errors': errors, 'times': times, 'duration': duration})
     client.close()
-    if os.path.exists(TEST_FILE):
-        os.remove(TEST_FILE)
+    print_results('SECUENCIAL', success, errors, times, duration, NUM_SEQ)
+
+def worker(wid, n):
+    client = AIClient()
+    for i in range(n):
+        t0 = time.time()
+        try:
+            resp = client.predict("test_model", [random.random() for _ in range(784)])
+            rt = (time.time() - t0) * 1000
+            with lock:
+                if resp.get('success'):
+                    results['concurrent']['success'] += 1
+                    results['concurrent']['times'].append(rt)
+                else:
+                    results['concurrent']['errors'] += 1
+        except:
+            with lock:
+                results['concurrent']['errors'] += 1
+    client.close()
+
+def run_concurrent():
+    print(f"Concurrente: {NUM_CONC} peticiones / {THREADS} threads\n")
+    results['concurrent'] = {'success': 0, 'errors': 0, 'times': []}
+    per_thread = NUM_CONC // THREADS
+    threads = [threading.Thread(target=worker, args=(i, per_thread)) for i in range(THREADS)]
+    
+    start = time.time()
+    for t in threads:
+        t.start()
+    
+    while any(t.is_alive() for t in threads):
+        with lock:
+            done = results['concurrent']['success'] + results['concurrent']['errors']
+        print(f"Progreso: {done}/{NUM_CONC}", end='\r')
+        time.sleep(0.5)
+    
+    for t in threads:
+        t.join()
+    
+    duration = time.time() - start
+    results['concurrent']['duration'] = duration
+    print()
+    print_results('CONCURRENTE', results['concurrent']['success'], 
+                  results['concurrent']['errors'], results['concurrent']['times'], duration, NUM_CONC)
+
+def print_results(name, success, errors, times, dur, total):
+    print(f"{name}\n")
+    print(f"Total: {total} | Exitosas: {success} ({success/total*100:.1f}%) | Fallidas: {errors}")
+    print(f"Tiempo: {dur:.2f}s | Throughput: {total/dur:.2f} req/s")
+    if times:
+        print(f"Response: Avg={mean(times):.1f}ms Med={median(times):.1f}ms Min={min(times):.1f}ms Max={max(times):.1f}ms")
+
+def save_report():
+    report = {
+        'timestamp': datetime.now().isoformat(),
+        'sequential': {
+            'requests': NUM_SEQ,
+            'success': results['sequential']['success'],
+            'errors': results['sequential']['errors'],
+            'duration': results['sequential'].get('duration', 0),
+            'avg_ms': mean(results['sequential']['times']) if results['sequential']['times'] else 0
+        },
+        'concurrent': {
+            'requests': NUM_CONC,
+            'threads': THREADS,
+            'success': results['concurrent']['success'],
+            'errors': results['concurrent']['errors'],
+            'duration': results['concurrent'].get('duration', 0),
+            'avg_ms': mean(results['concurrent']['times']) if results['concurrent']['times'] else 0
+        }
+    }
+    filename = f"stress_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    with open(filename, 'w') as f:
+        json.dump(report, f, indent=2)
+    print(f"\nReporte guardado en: {filename}")
 
 if __name__ == "__main__":
-    run_stress_test()
+    print(f"Stress test")
+    run_sequential()
+    time.sleep(1)
+    run_concurrent()
+    
+    total = NUM_SEQ + NUM_CONC
+    success = results['sequential']['success'] + results['concurrent']['success']
+    print(f"\nResumen: {total} peticiones | {success} exitosas ({success/total*100:.1f}%)\n{'='*60}")
+    save_report()

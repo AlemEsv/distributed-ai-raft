@@ -28,6 +28,14 @@ def train():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/list_models')
+def list_models():
+    try:
+        response = client.send_message({'type': 'LIST_MODELS'})
+        return jsonify(response)
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/predict', methods=['POST'])
 def predict():
     try:
