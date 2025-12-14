@@ -135,28 +135,116 @@ Cada Worker debe mantener esta estructura en su sistema de archivos local:
 
 ## **4\. Cronograma de Integración (Pipeline)**
 
-### **Fase 1: Esqueleto de Conectividad (Días 1-2)**
+### **✅ Fase 1: Esqueleto de Conectividad (COMPLETADO)**
 
-* **P1/P2:** Lograr que 3 procesos Node.js se conecten por TCP entre sí y mantengan canales abiertos.  
-* **P3/P4:** Lograr que Java lea un CSV local, ejecute una operación matemática simple y guarde un archivo de salida.  
-* **P5:** Crear ventana Python básica que envíe un string JSON a Node.js y reciba un "ACK".
+* **P1/P2:** ✅ 3 procesos Node.js conectados por TCP y canales abiertos.  
+* **P3/P4:** ✅ Java lee CSV, ejecuta operaciones matemáticas y guarda archivos.  
+* **P5:** ✅ Cliente Python con GUI funcional que envía JSON a Node.js y recibe respuestas.
 
-### **Fase 2: Implementación de Núcleos (Días 3-4)**
+### **✅ Fase 2: Implementación de Núcleos (COMPLETADO)**
 
-* **P1:** Implementar elección de líder. Prueba: Matar el proceso líder y verificar que otro asume el mando en \<1 segundo.  
-* **P2:** Implementar replicación. Si el cliente envía un archivo al líder, este debe aparecer físicamente en la carpeta /disk de los 3 nodos.  
-* **P3/P4:** Implementar la red neuronal real (Backpropagation) y validar convergencia (reducción de error).
+* **P1:** ✅ Elección de líder Raft implementada con timeout y votación.  
+* **P2:** ✅ Replicación funcional - archivos se replican en `/disk` de los 3 nodos.  
+* **P3/P4:** ✅ Red neuronal con Backpropagation implementada y funcionando.
 
-### **Fase 3: Integración Híbrida (Día 5\)**
+### **✅ Fase 3: Mejoras de Cliente y Datasets (COMPLETADA - Semana 1)**
 
-* **P2:** Conectar Node con Java. Cuando Raft confirme ("commit") un archivo, Node lanza spawn('java', ...) automáticamente.  
-* **P2:** Node debe capturar el stdout de Java y, si es una respuesta de predicción, enrutarla de vuelta al socket del Cliente Python.
+**Semana 1: Expansión de Funcionalidades (COMPLETADA)**
 
-### **Fase 4: Pruebas y Despliegue (Día 6\)**
+* **P5 (Día 1-2):** ✅ Cliente con modo dual: entrada de texto + canvas de dibujo para imágenes.
+  * ✅ Implementado canvas 280x280 con conversión a 28x28.
+  * ✅ Agregadas dependencias: Pillow y numpy.
+  
+* **P3/P4 (Día 2-3):** ✅ Integración de datasets estándar:
+  * ✅ Agregado MNIST a `/core/datasets/mnist/mnist.csv`
+  * ✅ Agregado FashionMNIST a `/core/datasets/fashionmnist/fashionmnist.csv`
+  * ✅ Agregado ChineseMNIST a `/core/datasets/chinesemnist/chinese_mnist.csv`
+  * ✅ DataLoader con detección y soporte específico para imágenes 28x28 (784 features).
+  * ✅ Logs mejorados que indican compatibilidad con MNIST/FashionMNIST/ChineseMNIST.
 
-* **Despliegue:** Configurar IPs estáticas en 3 laptops conectadas a la misma red LAN/WiFi.  
-* **Estrés (P5):** Ejecutar el script de 1000 archivos.  
-* **Verificación:** Observar en los monitores Web (HTML) de P2 que los logs crecen sincronizados en las 3 laptops y no hay divergencias.
+* **P2 (Día 3-4):** ✅ Mejoras en el orquestador:
+  * ✅ `executor.js` con detección y soporte para vectores de 784 elementos.
+  * ✅ Timeout de 5 minutos para entrenamientos largos.
+  * ✅ Timeout de 30 segundos para predicciones.
+  * ✅ Logs de progreso cada 10 segundos durante entrenamiento.
+  * ✅ Monitor web con métricas de rendimiento (entrenamientos, predicciones, errores).
+  * ✅ Dashboard mejorado con timestamps y tiempos promedio.
+
+### **Fase 4: Integración Final y Pruebas (EN PROGRESO)**
+
+**Día 8-9: Pruebas de Sistema (COMPLETADO)**
+
+* **P5:** ✅ Pruebas de stress test:
+  * ✅ Script con 100 peticiones secuenciales + 500 concurrentes.
+  * ✅ Pruebas concurrentes con 50 threads simultáneos.
+  * ✅ Medición completa de tiempos de respuesta y throughput.
+  * ✅ Estadísticas detalladas: promedio, mediana, min, max, desviación estándar.
+  * ✅ Generación automática de reportes JSON con timestamp.
+  * ✅ Cálculo de tasa de éxito y rendimiento (req/s).
+
+* **P2:** ✅ Monitor web con métricas:
+  * ✅ Dashboard con métricas de rendimiento en tiempo real.
+  * ✅ Registro de entrenamientos y predicciones completadas.
+  * ✅ Timestamps y contadores de operaciones.
+  * 🔲 Visualización del estado del clúster Raft (roles y términos).
+  * 🔲 Gráficas de rendimiento histórico.
+
+**Día 10-11: Despliegue Multi-Máquina (EN PROGRESO)**
+
+* **Todo el equipo:** 🔄 Configuración distribuida:
+  * ✅ Documentación completa creada: `DESPLIEGUE_MULTIMAQUINA.md`
+  * ✅ Scripts de automatización creados: `start_node.sh`, `start_node.ps1`
+  * ✅ Script de configuración: `setup_distributed.sh`
+  * 🔲 Configurar IPs estáticas en 3 máquinas (LAN/WiFi).
+  * 🔲 Actualizar `config.js` con IPs reales de los peers.
+  * 🔲 Ejecutar sistema completo en red distribuida.
+  * 🔲 Validar replicación cross-machine.
+
+**Día 12: Validación Final**
+
+* **P5:** 🔲 Pruebas E2E completas:
+  * 🔲 Entrenar modelo MNIST desde GUI.
+  * 🔲 Realizar predicciones dibujando dígitos.
+  * 🔲 Verificar que las 3 máquinas mantienen estado consistente.
+  * 🔲 Simular fallo de nodo líder y verificar continuidad del servicio.
+
+### **📋 Fase 5: Documentación y Presentación (PENDIENTE)**
+
+**Día 13-14: Documentación**
+
+* **P1/P3:** 🔲 Informe técnico PDF:
+  * 🔲 Diagrama de arquitectura actualizado.
+  * 🔲 Diagrama de flujo del protocolo Raft.
+  * 🔲 Descripción de algoritmos matemáticos (Red Neuronal).
+  * 🔲 Resultados de pruebas de rendimiento.
+
+* **P2/P5:** 🔲 Manual de usuario:
+  * 🔲 Instrucciones de instalación y configuración.
+  * 🔲 Guía de uso del cliente GUI.
+  * 🔲 Troubleshooting común.
+
+**Día 15: Presentación**
+
+* **Todo el equipo:** 🔲 Preparar presentación:
+  * 🔲 Slides ejecutivos (15-20 diapositivas).
+  * 🔲 Demo en vivo del sistema funcionando.
+  * 🔲 Video de respaldo (por si falla la demo).
+  * 🔲 Ensayo de presentación (máx. 20 minutos).
+
+### **📊 Estado Actual del Proyecto**
+
+**Progreso General: ~75% Completado** ⬆️
+
+* ✅ Arquitectura core implementada (100%)
+* ✅ Algoritmo Raft funcional (100%)
+* ✅ Red neuronal Java operativa (100%)
+* ✅ Cliente Python con canvas de dibujo (100%)
+* ✅ Datasets estándar integrados (100%)
+* ✅ DataLoader con soporte 28x28 (100%)
+* ✅ Sistema de timeouts y monitoreo (100%)
+* 🔲 Pruebas de estrés completas (30%)
+* 🔲 Despliegue multi-máquina (0%)
+* 🔲 Documentación final (20%)
 
 ## **5\. Entregables Finales**
 
