@@ -15,14 +15,17 @@ public class DataLoader {
     /**
      * Carga datos de entrenamiento desde un archivo CSV
      * Formato esperado: feature1,feature2,...,label
+     * Soporta imágenes 28x28 (784 features + 1 label = 785 columnas)
      */
     public TrainingData loadTrainingData(String filePath) throws IOException {
-        System.out.println("Cargando datos desde: " + filePath);
-        
         File file = new File(filePath);
         if (!file.exists()) {
             throw new FileNotFoundException("Archivo no encontrado: " + filePath);
         }
+        
+        // Detectar tipo de dataset
+        String fileName = file.getName().toLowerCase();
+        boolean isImageDataset = fileName.contains("mnist") || fileName.contains("fashion");
         
         List<double[]> inputs = new ArrayList<>();
         List<double[]> outputs = new ArrayList<>();
@@ -49,8 +52,13 @@ public class DataLoader {
                     String[] parts = line.split(DELIMITER);
                     
                     if (parts.length < 2) {
-                        System.err.println("WARNING: Línea " + lineCount + " inválida, saltando");
+                        System.err.println("WARNING: Line " + lineCount + " invalid, skipping");
                         continue;
+                    }
+                    
+                    // Log para datasets de imágenes 28x28
+                    if (isImageDataset && lineCount == 1 && parts.length == 785) {
+                        System.out.println("Dataset de imágenes detectado");
                     }
                     
                     // Todas las columnas excepto la última son features
@@ -67,7 +75,7 @@ public class DataLoader {
                     outputs.add(output);
                     
                 } catch (NumberFormatException e) {
-                    System.err.println("WARNING: Error parseando línea " + lineCount + ": " + e.getMessage());
+                    System.err.println("WARNING: Parse error at line " + lineCount + ": " + e.getMessage());
                 }
             }
         }
@@ -83,6 +91,10 @@ public class DataLoader {
         // NORMALIZACIÓN DE DATOS
         inputArray = normalizeData(inputArray);
         outputArray = normalizeData(outputArray);
+
+        if (inputArray[0].length == 784) {
+            System.out.println("Formato compatible");
+        }
         
         return new TrainingData(inputArray, outputArray);
     }
@@ -163,7 +175,7 @@ public class DataLoader {
     }
     
     /**
-     * Carga datos de imagen (formato simplificado)
+     * Carga datos de imagen
      * Para imágenes, Node.js debería convertirlas a CSV de píxeles
      */
     public TrainingData loadImageData(String imagePath) throws IOException {

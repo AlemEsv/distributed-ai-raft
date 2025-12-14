@@ -28,12 +28,6 @@ public class MultiThreadTrainer {
      * Entrena la red neuronal usando todos los núcleos del CPU
      */
     public void train(TrainingData data, int epochs, double learningRate, int batchSize) {
-        System.out.println("=== INICIANDO ENTRENAMIENTO MULTI-THREAD ===");
-        System.out.println("Epochs: " + epochs);
-        System.out.println("Learning Rate: " + learningRate);
-        System.out.println("Batch Size: " + batchSize);
-        System.out.println("Threads: " + numThreads);
-        
         long startTime = System.currentTimeMillis();
         
         for (int epoch = 0; epoch < epochs; epoch++) {
@@ -83,11 +77,12 @@ public class MultiThreadTrainer {
             
             executor.submit(() -> {
                 try {
-                    double batchLoss = trainSingleBatch(batch, learningRate);
-                    totalLoss.add(batchLoss);
+                    if (batch != null && batch.getSize() > 0) {
+                        double batchLoss = trainSingleBatch(batch, learningRate);
+                        totalLoss.add(batchLoss);
+                    }
                 } catch (Exception e) {
                     System.err.println("Error en batch " + batchIndex + ": " + e.getMessage());
-                    e.printStackTrace();
                 } finally {
                     latch.countDown();
                 }
@@ -108,15 +103,17 @@ public class MultiThreadTrainer {
     /**
      * Entrena un solo batch
      */
-    private double trainSingleBatch(TrainingData batch, double learningRate) {
+    private synchronized double trainSingleBatch(TrainingData batch, double learningRate) {
         double batchLoss = 0.0;
         int batchSize = batch.getSize();
         
         // Acumular gradientes para todo el batch
         for (int i = 0; i < batchSize; i++) {
             TrainingData.DataPair example = batch.getExample(i);
-            double loss = network.trainStep(example.input, example.output, learningRate);
-            batchLoss += loss;
+            if (example != null && example.input != null && example.output != null) {
+                double loss = network.trainStep(example.input, example.output, learningRate);
+                batchLoss += loss;
+            }
         }
         
         return batchLoss / batchSize;

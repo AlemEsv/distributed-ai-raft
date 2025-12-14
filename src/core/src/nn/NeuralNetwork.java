@@ -33,14 +33,6 @@ public class NeuralNetwork implements Serializable {
         
         // Inicializar pesos y biases
         initializeParameters();
-        
-        System.out.println("Red Neuronal creada:");
-        System.out.print("Arquitectura: [");
-        for (int i = 0; i < layers.length; i++) {
-            System.out.print(layers[i]);
-            if (i < layers.length - 1) System.out.print(" -> ");
-        }
-        System.out.println("]");
     }
     
     /**
@@ -201,12 +193,9 @@ public class NeuralNetwork implements Serializable {
      * P3: Tarea 3.4 - Carga el modelo desde disco
      */
     public static NeuralNetwork loadModel(String filePath) throws IOException, ClassNotFoundException {
-        System.out.println("Cargando modelo desde: " + filePath);
-        
         try (ObjectInputStream ois = new ObjectInputStream(
                 new BufferedInputStream(new FileInputStream(filePath)))) {
             NeuralNetwork nn = (NeuralNetwork) ois.readObject();
-            System.out.println("Modelo cargado exitosamente");
             return nn;
         }
     }

@@ -65,34 +65,30 @@ public class Main {
         
         String inputPath = args[1];
         String modelId = args[2];
-        
-        System.out.println("=== INICIANDO ENTRENAMIENTO ===");
-        System.out.println("Input Path: " + inputPath);
-        System.out.println("Model ID: " + modelId);
-        System.out.println("Núcleos disponibles: " + Runtime.getRuntime().availableProcessors());
+        System.out.println("[TRAIN] Iniciando con dataset: " + inputPath);
+        System.out.println("[TRAIN] Modelo ID: " + modelId);
         
         // P4 Tarea 4.2: Gestión de I/O - Leer y normalizar datos
         DataLoader loader = new DataLoader();
         TrainingData data = loader.loadTrainingData(inputPath);
-        
-        System.out.println("Datos cargados: " + data.getSize() + " ejemplos");
-        System.out.println("Features: " + data.getInputSize());
-        System.out.println("Outputs: " + data.getOutputSize());
+        System.out.println("[TRAIN] Datos cargados: " + data.getSize() + " ejemplos");
         
         // Configuración de la red neuronal (colaboración con P3)
         int[] layers = {data.getInputSize(), 64, 32, data.getOutputSize()};
         NeuralNetwork nn = new NeuralNetwork(layers);
         
         // P4 Tarea 4.1: Multi-threading para entrenamiento
+        System.out.println("[TRAIN] Iniciando entrenamiento multi-thread...");
         MultiThreadTrainer trainer = new MultiThreadTrainer(nn);
-        trainer.train(data, 100, 0.01, 32); // epochs, learning rate, batch size
+        trainer.train(data, 10, 0.01, 32); // epochs, learning rate, batch size
+        System.out.println("[TRAIN] Entrenamiento completado");
         
         // Guardar modelo (P3 proporciona la serialización)
         String modelPath = "models/" + modelId + ".bin";
+        System.out.println("[TRAIN] Guardando modelo en: " + modelPath);
         nn.saveModel(modelPath);
+        System.out.println("[TRAIN] Modelo guardado exitosamente");
         
-        System.out.println("=== ENTRENAMIENTO COMPLETADO ===");
-        System.out.println("Modelo guardado en: " + modelPath);
         System.out.println("Status: SUCCESS");
     }
     
@@ -123,13 +119,18 @@ public class Main {
         // Realizar predicción
         double[] output = nn.predict(input);
         
-        // Formatear salida para Node.js
-        System.out.print("[");
-        for (int i = 0; i < output.length; i++) {
-            System.out.print(output[i]);
-            if (i < output.length - 1) System.out.print(", ");
+        // Encontrar el índice con mayor probabilidad (argmax)
+        int predictedClass = 0;
+        double maxProbability = output[0];
+        for (int i = 1; i < output.length; i++) {
+            if (output[i] > maxProbability) {
+                maxProbability = output[i];
+                predictedClass = i;
+            }
         }
-        System.out.println("]");
+        
+        // Formatear salida: "Prediccion: X (YY.YY% confianza)"
+        System.out.printf("Prediccion: %d (%.2f%% confianza)%n", predictedClass, maxProbability * 100);
         System.err.println("Status: SUCCESS");
     }
     
