@@ -40,7 +40,9 @@ class RaftNode {
     // --- State Management ---
 
     transitionTo(newState) {
-        console.log(`[RAFT] Transition: ${this.state} -> ${newState}`);
+        if (this.state !== STATES.FOLLOWER || newState !== STATES.FOLLOWER) {
+            console.log(`[RAFT] Transition: ${this.state} -> ${newState}`);
+        }
         this.state = newState;
         
         if (newState === STATES.FOLLOWER) {
@@ -75,8 +77,8 @@ class RaftNode {
     resetElectionTimer() {
         if (this.electionTimer) clearTimeout(this.electionTimer);
         
-        // Random timeout between 150ms and 300ms
-        const timeout = Math.floor(Math.random() * 150) + 150;
+        // Random timeout between 2000ms and 4000ms (más largo para entrenamientos)
+        const timeout = Math.floor(Math.random() * 2000) + 2000;
         
         this.electionTimer = setTimeout(() => {
             console.log('[RAFT] Election timeout!');
@@ -90,7 +92,7 @@ class RaftNode {
 
     startHeartbeats() {
         this.sendHeartbeats();
-        this.heartbeatTimer = setInterval(this.sendHeartbeats, 50); // 50ms heartbeat
+        this.heartbeatTimer = setInterval(this.sendHeartbeats, 500); // 500ms heartbeat
     }
 
     stopHeartbeats() {

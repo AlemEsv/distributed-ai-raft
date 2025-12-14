@@ -11,6 +11,30 @@ let raftState = {
     votedFor: null
 };
 
+// Métricas de rendimiento
+let metrics = {
+    trainings: 0,
+    predictions: 0,
+    lastTraining: null,
+    lastPrediction: null,
+    trainingTimes: [],
+    errors: 0
+};
+
+function updateMetrics(type, duration = null) {
+    const now = new Date().toISOString();
+    if (type === 'train') {
+        metrics.trainings++;
+        metrics.lastTraining = now;
+        if (duration) metrics.trainingTimes.push(duration);
+    } else if (type === 'predict') {
+        metrics.predictions++;
+        metrics.lastPrediction = now;
+    } else if (type === 'error') {
+        metrics.errors++;
+    }
+}
+
 function updateRaftState(newState) {
     raftState = { ...raftState, ...newState };
 }
@@ -22,10 +46,17 @@ function createMonitorServer() {
             res.end(generateHTML());
         } else if (req.url === '/api/status') {
             res.writeHead(200, { 'Content-Type': 'application/json' });
+            const avgTrainingTime = metrics.trainingTimes.length > 0 
+                ? Math.round(metrics.trainingTimes.reduce((a,b) => a+b, 0) / metrics.trainingTimes.length)
+                : 0;
             res.end(JSON.stringify({
                 node: config.nodeId,
                 raft: raftState,
-                replication: getReplicationState()
+                replication: getReplicationState(),
+                metrics: {
+                    ...metrics,
+                    avgTrainingTime
+                }
             }));
         } else {
             res.writeHead(404);
@@ -85,8 +116,19 @@ function generateHTML() {
     </div>
     
     <div class="card">
+        <h3>Métricas de Rendimiento</h3>
+        <table>
+            <tr><td>Entrenamientos Completados</td><td><strong>${metrics.trainings}</strong></td></tr>
+            <tr><td>Predicciones Realizadas</td><td><strong>${metrics.predictions}</strong></td></tr>
+            <tr><td>Errores</td><td style="color: ${metrics.errors > 0 ? '#e74c3c' : '#27ae60'}">${metrics.errors}</td></tr>
+            <tr><td>Último Entrenamiento</td><td>${metrics.lastTraining || 'N/A'}</td></tr>
+            <tr><td>Última Predicción</td><td>${metrics.lastPrediction || 'N/A'}</td></tr>
+        </table>
+    </div>
+    
+    <div class="card">
         <h3>Archivos en Disco (${repl.filesOnDisk.length})</h3>
-        ${repl.filesOnDisk.map(f => `<div class="log-entry">📄 ${f}</div>`).join('') || '<p>Sin archivos</p>'}
+        ${repl.filesOnDisk.map(f => `<div class="log-entry">${f}</div>`).join('') || '<p style="color:#666">Sin archivos replicados</p>'}
     </div>
     
     <div class="card">
@@ -104,4 +146,4 @@ function generateHTML() {
 </html>`;
 }
 
-module.exports = { createMonitorServer, updateRaftState };
+module.exports = { createMonitorServer, updateRaftState, updateMetrics };

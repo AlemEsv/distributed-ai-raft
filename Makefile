@@ -1,7 +1,11 @@
-.PHONY: all core client client-web server-nodes clean
+.PHONY: all core client client-web server-nodes clean stop
 
 # Compilar e iniciar todo el sistema
-all: core server-nodes client
+all: stop core server-nodes client
+
+# Detener procesos node y java
+stop:
+	@powershell -Command "Get-Process node,java -ErrorAction SilentlyContinue | Stop-Process -Force" 2>nul || echo Procesos detenidos
 
 # Compilar Core
 core:
@@ -16,19 +20,21 @@ core:
 # Iniciar los 3 nodos del servidor
 server-nodes:
 	@echo "Iniciando nodos del servidor..."
-	@cmd /c start "Node A" node src/server/node_worker/server.js Node_B
-	@cmd /c start "Node B" node src/server/node_worker/server.js Node_C
-	@cmd /c start "Node C" node src/server/node_worker/server.js Node_A
+	@cmd /c start "Node A" node src/server/node_worker/server.js Node_A
+	@timeout /t 2 /nobreak >nul
+	@cmd /c start "Node B" node src/server/node_worker/server.js Node_B
+	@timeout /t 2 /nobreak >nul
+	@cmd /c start "Node C" node src/server/node_worker/server.js Node_C
 
 # Iniciar Cliente
 client:
 	@echo "Iniciando Cliente..."
-	@python src/client/gui_app.py
+	@cmd /c start "Cliente GUI" .venv\Scripts\python.exe src/client/gui_app.py
 
 # Iniciar Cliente Web
 client-web:
 	@echo "Iniciando Cliente Web..."
-	@cmd /c start "Cliente Web Flask" cmd /k "call .venv\Scripts\activate & python src/client/web_app.py"
+	@cmd /c start "Cliente Web Flask" .venv\Scripts\python.exe src/client/web_app.py"
 
 # Limpiar archivos
 clean:

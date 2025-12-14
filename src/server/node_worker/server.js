@@ -3,7 +3,7 @@ const config = require('./config');
 const { createClientServer, sendResponse } = require('./tcp/tcpServer');
 const { createPeerServer, connectToAllPeers, sendToPeer } = require('./tcp/peerSocket');
 const RaftNode = require('./raft/RaftNode');
-const { createMonitorServer } = require('./http/monitor');
+const { createMonitorServer, updateMetrics } = require('./http/monitor');
 const { trainModel, predict } = require('./java/executor');
 const path = require('path');
 
@@ -31,31 +31,71 @@ function handleClientMessage(socket, message) {
             handlePredictRequest(socket, message.payload);
             break;
             
+        case 'LIST_MODELS':
+            handleListModels(socket);
+            break;
+            
         default:
             sendResponse(socket, { error: 'Tipo de mensaje desconocido' });
     }
 }
 
-// Procesar solicitud de entrenamiento
-async function handleTrainRequest(socket, payload) {
-    const { data_content, model_name } = payload;
-    const filename = `${model_name}_${Date.now()}.csv`;
-    const inputPath = path.join(__dirname, 'disk/datasets', filename);
+// Listar modelos disponibles
+function handleListModels(socket) {
+    const fs = require('fs');
+    const modelsDir = path.resolve(__dirname, '../../core/models');
     
     try {
-        // 1. Replicar datos a todos los nodos (Consenso Raft)
-        RaftNode.replicateData(filename, Buffer.from(data_content, 'base64'));
+        if (!fs.existsSync(modelsDir)) {
+            sendResponse(socket, { success: true, models: [] });
+            return;
+        }
         
-        // 2. Ejecutar entrenamiento en Java
+        const files = fs.readdirSync(modelsDir);
+        const models = files
+            .filter(f => f.endsWith('.bin'))
+            .map(f => f.replace('.bin', ''));
+        
+        sendResponse(socket, { success: true, models });
+    } catch (error) {
+        sendResponse(socket, { success: false, error: error.message });
+    }
+}
+
+// Procesar solicitud de entrenamiento
+async function handleTrainRequest(socket, payload) {
+    const { dataset, model_name } = payload;
+    
+    // Usar dataset predefinido en lugar de subir archivo
+    const datasetPaths = {
+        'mnist': path.resolve(__dirname, '../../core/datasets/mnist.csv'),
+        'fashionmnist': path.resolve(__dirname, '../../core/datasets/fashionmnist.csv')
+    };
+    
+    const inputPath = datasetPaths[dataset];
+    if (!inputPath) {
+        sendResponse(socket, { success: false, error: 'Dataset no válido' });
+        return;
+    }
+    
+    try {
+        // Ejecutar entrenamiento y esperar resultado
+        console.log(`[TRAIN] Modelo: ${model_name}, Dataset: ${dataset}`);
         const result = await trainModel(inputPath, model_name);
+        
+        // Responder solo cuando termine
+        updateMetrics('train', result.duration);
+        console.log(`[TRAIN] Completado: ${model_name} en ${result.duration}s`);
         
         sendResponse(socket, {
             success: true,
-            message: 'Entrenamiento completado',
-            modelId: result.modelId
+            message: 'Entrenamiento completado exitosamente',
+            modelId: model_name,
+            duration: result.duration
         });
         
     } catch (error) {
+        updateMetrics('error');
         sendResponse(socket, {
             success: false,
             error: error.message
@@ -69,8 +109,13 @@ async function handlePredictRequest(socket, payload) {
     
     try {
         const result = await predict(model_id, input_vector);
+        
+        // Actualizar métricas
+        updateMetrics('predict');
+        
         sendResponse(socket, result);
     } catch (error) {
+        updateMetrics('error');
         sendResponse(socket, {
             success: false,
             error: error.message
