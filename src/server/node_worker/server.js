@@ -52,9 +52,27 @@ function handleListModels(socket) {
         }
         
         const files = fs.readdirSync(modelsDir);
-        const models = files
-            .filter(f => f.endsWith('.bin'))
-            .map(f => f.replace('.bin', ''));
+        const modelFiles = files.filter(f => f.endsWith('.bin'));
+        
+        const models = modelFiles.map(f => {
+            const id = f.replace('.bin', '');
+            const metaPath = path.join(modelsDir, `${id}.json`);
+            let meta = { id, dataset: 'Desconocido', date: '-', status: 'Disponible', accuracy: '-' };
+            
+            if (fs.existsSync(metaPath)) {
+                try {
+                    const data = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
+                    meta = { ...meta, ...data };
+                } catch(e) {}
+            } else {
+                // Intentar obtener fecha del archivo
+                try {
+                    const stats = fs.statSync(path.join(modelsDir, f));
+                    meta.date = stats.mtime.toISOString().split('T')[0];
+                } catch(e) {}
+            }
+            return meta;
+        });
         
         sendResponse(socket, { success: true, models });
     } catch (error) {
@@ -83,6 +101,22 @@ async function handleTrainRequest(socket, payload) {
         console.log(`[TRAIN] Modelo: ${model_name}, Dataset: ${dataset}`);
         const result = await trainModel(inputPath, model_name);
         
+        // Guardar metadatos del modelo
+        const fs = require('fs');
+        const metaPath = path.resolve(__dirname, '../../core/models', `${model_name}.json`);
+        const metadata = {
+            id: model_name,
+            dataset: dataset,
+            date: new Date().toISOString().split('T')[0],
+            status: 'Disponible',
+            accuracy: result.accuracy || 'N/A'
+        };
+        try {
+            fs.writeFileSync(metaPath, JSON.stringify(metadata, null, 2));
+        } catch(e) {
+            console.error("Error guardando metadatos:", e);
+        }
+
         // Responder solo cuando termine
         updateMetrics('train', result.duration);
         console.log(`[TRAIN] Completado: ${model_name} en ${result.duration}s`);

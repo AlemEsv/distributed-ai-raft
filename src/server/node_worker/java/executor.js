@@ -6,8 +6,8 @@ const config = require('../config');
 const JAR_PATH = path.resolve(config.javaJar);
 const MODELS_PATH = path.join(__dirname, '../disk/models');
 
-// Timeout para entrenamientos largos (5 minutos)
-const TRAIN_TIMEOUT = 5 * 60 * 1000; // 5 minutos
+// Timeout para entrenamientos largos (30 minutos)
+const TRAIN_TIMEOUT = 30 * 60 * 1000; // 30 minutos
 const PREDICT_TIMEOUT = 30 * 1000;    // 30 segundos
 
 // Ejecutar entrenamiento
@@ -33,21 +33,27 @@ function trainModel(inputPath, modelId) {
         
         let stdout = '';
         let stderr = '';
+        let stdoutBuffer = '';
         let lastProgress = Date.now();
+        let finalAccuracy = 'N/A';
         
         process.stdout.on('data', (data) => {
             const output = data.toString();
             stdout += output;
+            stdoutBuffer += output;
             
-            // Mostrar TODOS los logs de Java
-            console.log(`[JAVA OUT] ${output.trim()}`);
-            
-            // Log de progreso cada 10 segundos
-            const now = Date.now();
-            if (now - lastProgress > 10000) {
-                const elapsed = Math.round((now - startTime) / 1000);
-                console.log(`[JAVA] Progreso... ${elapsed}s transcurridos`);
-                lastProgress = now;
+            // Procesar salida línea por línea
+            let newlineIndex;
+            while ((newlineIndex = stdoutBuffer.indexOf('\n')) !== -1) {
+                const line = stdoutBuffer.substring(0, newlineIndex).trim();
+                stdoutBuffer = stdoutBuffer.substring(newlineIndex + 1);
+                
+                if (line) {
+                    console.log(`[JAVA] ${line.replace(/^Epoch /, '')}`);
+                    if (line.includes('[TRAIN] Accuracy:')) {
+                        finalAccuracy = line.split(':')[1].trim();
+                    }
+                }
             }
         });
         
@@ -78,7 +84,8 @@ function trainModel(inputPath, modelId) {
                     modelId,
                     output: stdout,
                     duration: elapsed,
-                    modelPath: modelPath
+                    modelPath: modelPath,
+                    accuracy: finalAccuracy
                 });
             } else {
                 reject(new Error(`Java terminó con código ${code} después de ${elapsed}s: ${stderr}`));
